@@ -41,6 +41,9 @@ SCREENSHOTS
 
 <img width="838" height="572" alt="image" src="https://github.com/user-attachments/assets/2bc621b9-c7b4-4208-9c65-68dff4ab24e4" />
 
+<img width="846" height="567" alt="image" src="https://github.com/user-attachments/assets/65da97e5-ab20-48b4-9cb5-19505321d395" />
+
+<img width="836" height="537" alt="image" src="https://github.com/user-attachments/assets/a85d1b6f-7fc8-421e-863f-88b396c72068" />
 
 
 License
