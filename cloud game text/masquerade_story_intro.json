@@ -1,0 +1,135 @@
+{
+  "start": {
+    "text": "The group sits in silence around the booth at their favorite fast food spot. Marie frowns, staring at her phone. Halima hasn't replied in days. Ayo jokes to break the tension, but even Murna doesn't laugh.",
+    "choices": {
+      "Ask around about Halima's last known location": "ask_locals",
+      "Call Pitch for intel": "call_pitch",
+      "Check Halima's social media activity": "check_social"
+    }
+  },
+  "check_social": {
+    "text": "Marie opens Halima’s social accounts. A geo-tagged photo from three nights ago shows her near an abandoned hospital. A cryptic comment reads: 'They always come out at night.'",
+    "choices": {
+      "Visit the abandoned hospital": "hospital_explore",
+      "Try to trace the commenter": "trace_commenter"
+    }
+  },
+  "hospital_explore": {
+    "text": "The hospital reeks of decay. You find graffiti reading 'Red Veil owns the night' and a discarded cloak with a blood insignia. Something terrible happened here.",
+    "choices": {
+      "Search deeper in the hospital": "hospital_deeper",
+      "Take cloak back to Pitch": "cloak_pitch"
+    }
+  },
+  "hospital_deeper": {
+    "text": "In the basement, you find a recording device. Playing it back, Halima’s voice speaks softly: 'If they find this, I was right. The auction is real. They wear masks of gods.'",
+    "choices": {
+      "Investigate mask symbolism": "mask_research",
+      "Bring device to Kelvin": "kelvin_intro"
+    }
+  },
+  "cloak_pitch": {
+    "text": "You hand the cloak to Pitch. He tenses. 'Red Veil cloak. No wonder she vanished.' He hesitates, then hands you a small slip: coordinates and a password.",
+    "choices": {
+      "Follow the coordinates": "kelvin_path",
+      "Share cloak with Kelvin instead": "kelvin_intro"
+    }
+  },
+  "trace_commenter": {
+    "text": "You backtrace the commenter to a burner account tied to a known informant named Seye. He's holed up in a junkyard across town.",
+    "choices": {
+      "Visit Seye": "visit_seye",
+      "Send Kelvin to meet him": "kelvin_to_seye"
+    }
+  },
+  "visit_seye": {
+    "text": "Seye is paranoid, but when Marie offers protection, he talks. 'Halima found out about the Masquerade. Told me to warn you if she went dark.'",
+    "choices": {
+      "Ask what else she said": "seye_deeper",
+      "Ask if he knows who took her": "seye_suspect"
+    }
+  },
+  "seye_deeper": {
+    "text": "'She mentioned someone high up—called the Ringmaster. Said he wasn’t fully vampire. Wore a hat. Controlled the auctions like a circus show.'",
+    "choices": {
+      "Ask if he’s seen the Ringmaster": "seye_ringmaster"
+    }
+  },
+  "seye_suspect": {
+    "text": "Seye looks nervous. 'She didn’t say names. But... she was watching Pitch. Real close.' This adds fuel to Murna’s suspicions.",
+    "choices": {
+      "Go confront Pitch": "confront_pitch",
+      "Keep this to yourself": "ask_locals"
+    }
+  },
+  "seye_ringmaster": {
+    "text": "Seye shows a crude sketch. Top hat, long coat, chimp companion. Looks eerily familiar to someone you've seen before. Ayo suggests digging through old vampire archives.",
+    "choices": {
+      "Go to vampire archive": "archive_dig",
+      "Show Kelvin the sketch": "kelvin_intro"
+    }
+  },
+  "archive_dig": {
+    "text": "The archives speak of a vampire who fused with a demon during an eclipse. Called himself ‘Master of the Masque’. Loves spectacle. Likely your Ringmaster.",
+    "choices": {
+      "Cross-reference with Red Veil": "red_veil_info"
+    }
+  },
+  "kelvin_to_seye": {
+    "text": "Kelvin returns pale. 'Seye confirmed Halima went after the Masquerade. He also said the Red Veil is preparing something big. Like a trade meet... or a culling.'",
+    "choices": {
+      "Ask what else Seye said": "seye_deeper"
+    }
+  },
+  "combat_continues": {
+    "text": "Flames, steel, and shadow. The masquerade is drenched in blood. One by one, your team slays the masked elites. The host laughs even as he falls. The survivors among the vampires vanish into smoke. Halima, bloodied but alive, is freed.",
+    "choices": {
+      "Confront Halima about what she learned while captured": "halima_reveals",
+      "Check the Ringmaster's remains for clues": "ringmaster_clue"
+    }
+  },
+  "rescue_escape": {
+    "text": "Kelvin overrides the security, unlocking a back route. Murna frees Halima while Ayo creates a diversion. You escape—but know the Red Veil will retaliate. The auction hall burns behind you.",
+    "choices": {
+      "Ask Halima what she saw inside": "halima_reveals",
+      "Lay low at Kelvin’s lab and regroup": "regroup_at_lab"
+    }
+  },
+  "halima_reveals": {
+    "text": "Halima breathes heavily, gripping her side. 'They’re harvesting aura... not just selling people. They’re preparing for something. A blood eclipse. They need nexus souls for a ritual.'",
+    "choices": {
+      "Search for the ritual site": "ritual_site",
+      "Interrogate surviving vampire prisoner": "vampire_prisoner"
+    }
+  },
+  "ringmaster_clue": {
+    "text": "You find a hidden pocket in the Ringmaster’s coat. Inside is a torn map with three circled zones. One is labeled 'Sanctuary'. Another, 'Offering Site'. The third reads only: 'Nexus'.",
+    "choices": {
+      "Visit the Offering Site": "ritual_site",
+      "Take the map to Kelvin": "regroup_at_lab"
+    }
+  },
+  "regroup_at_lab": {
+    "text": "Kelvin studies the map. 'This—this is bigger than we thought. They’re going to try summoning something. We may have stopped the auction, but we didn’t stop the ritual.'",
+    "choices": {
+      "Begin planning to stop the ritual": "ritual_site"
+    }
+  },
+  "vampire_prisoner": {
+    "text": "The vampire hisses, bound in silver chains. 'You think this ends here? The Ringmaster was just a conductor. The true leader feeds on gods. You’ll see.'",
+    "choices": {
+      "Interrogate further": "learn_about_leader",
+      "Dispose of him": "ritual_site"
+    }
+  },
+  "learn_about_leader": {
+    "text": "The vampire smirks through bloodied teeth. 'They call her the Bleeding Crown. She leads from the old catacombs beneath Zaria. Find her... if you dare.'",
+    "choices": {
+      "Mark location and prepare journey to Zaria": "ritual_site"
+    }
+  },
+  "ritual_site": {
+    "text": "As the dust settles and the truths come to light, the crew faces a chilling fact: the auction was only one layer. The ritual looms, and Nigeria’s shadowed history is awakening. The next chapter begins soon...",
+    "choices": {}
+  }
+}
