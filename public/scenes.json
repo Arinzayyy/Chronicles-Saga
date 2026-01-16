@@ -1,0 +1,42 @@
+{
+  "start": {
+    "text": "Hey",
+    "choices": [
+      { "text": "Who is this?", "next": "who", "effect": 0 },
+      { "text": "…do I know you?", "next": "who", "effect": -5 }
+    ]
+  },
+  "who": {
+    "text": "You used to text me when things got loud.",
+    "glitch": true,
+    "choices": [
+      { "text": "I don’t remember that", "next": "memory", "effect": -5 },
+      { "text": "When I was a kid?", "next": "memory", "effect": 5 }
+    ]
+  },
+  "memory": {
+    "text": "Yeah. From your room. With the door locked.",
+    "choices": [
+      { "text": "I just needed quiet", "next": "quiet", "effect": 5 },
+      { "text": "I was scared", "next": "scared", "effect": -10 }
+    ]
+  },
+  "quiet": {
+    "text": "You’re still doing that.",
+    "choices": [
+      { "text": "I’m better now", "next": "accept", "effect": 10 },
+      { "text": "I don’t feel anything", "next": "fracture", "effect": -15 }
+    ]
+  },
+  "scared": {
+    "text": "You left me there.",
+    "glitch": true,
+    "choices": [
+      { "text": "I didn’t know how to help", "next": "accept", "effect": 15 },
+      { "text": "I had to grow up", "next": "collapse", "effect": -20 }
+    ]
+  },
+  "accept": { "ending": "good" },
+  "fracture": { "ending": "neutral" },
+  "collapse": { "ending": "bad" }
+}

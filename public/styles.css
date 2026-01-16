@@ -1,0 +1,115 @@
+body {
+    background: #0b141a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    margin: 0;
+}
+
+/* PHONE CONTAINER */
+#phone {
+    width: 360px;
+    height: 640px;
+    background: #0b141a;
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 0 40px rgba(0,0,0,0.7);
+}
+
+/* HEADER */
+#header {
+    background: #075E54;
+    color: #ffffff;
+    padding: 14px;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* CHAT AREA */
+#chat {
+    flex: 1;
+    padding: 12px;
+    overflow-y: auto;
+    background: #0b141a;
+}
+
+/* MESSAGE BUBBLES */
+.message {
+    max-width: 75%;
+    padding: 8px 10px;
+    margin: 6px 0;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.3;
+    position: relative;
+    animation: fadeIn 0.25s ease;
+}
+
+.them {
+    background: #202c33;
+    color: #e9edef;
+}
+
+.you {
+    background: #005c4b;
+    color: #e9edef;
+    margin-left: auto;
+}
+
+/* TYPING INDICATOR */
+#typing {
+    font-size: 12px;
+    color: #8696a0;
+    padding: 6px 12px;
+}
+
+/* CHOICES */
+#choices {
+    padding: 10px;
+    background: #0b141a;
+}
+
+.choice {
+    background: #202c33;
+    color: #e9edef;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.choice:hover {
+    background: #2a3942;
+}
+
+/* GLITCH EFFECT */
+.glitch {
+    animation: glitch 2.5s infinite;
+}
+
+/* ANIMATIONS */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes glitch {
+    0% { transform: translate(0); }
+    92% { transform: translate(0); }
+    93% { transform: translate(-1px, 0); }
+    94% { transform: translate(1px, 0); }
+    95% { transform: translate(0, -1px); }
+    96% { transform: translate(0); }
+}
