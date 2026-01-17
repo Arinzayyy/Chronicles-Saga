@@ -113,3 +113,123 @@ body {
     95% { transform: translate(0, -1px); }
     96% { transform: translate(0); }
 }
+
+/* LOCK SCREEN */
+#lockscreen {
+    position: absolute;
+    width: 360px;
+    height: 640px;
+
+    background-image: url("lockscreen.jpg");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 40px 20px;
+    z-index: 10;
+}
+
+
+#lock-time {
+    font-size: 48px;
+    font-weight: 300;
+    margin-top: 40px;
+}
+
+#lock-date {
+    font-size: 14px;
+    opacity: 0.7;
+}
+
+.lock-hint {
+    font-size: 12px;
+    opacity: 0.5;
+}
+
+/* NOTIFICATION */
+#notification {
+    width: 100%;
+    background: #202c33;
+    border-radius: 12px;
+    padding: 12px;
+    cursor: pointer;
+    animation: slideDown 0.6s ease;
+}
+
+.notif-app {
+    font-size: 12px;
+    font-weight: 600;
+    opacity: 0.7;
+}
+
+.notif-text {
+    font-size: 14px;
+    margin-top: 4px;
+}
+
+.notif-hint {
+    font-size: 11px;
+    opacity: 0.5;
+}
+
+.hidden { display: none; }
+
+#header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #075E54;
+  color: #fff;
+  padding: 14px;
+  font-weight: 600;
+}
+
+#headerTitle { flex: 1; text-align: center; }
+
+.icon-btn {
+  background: transparent;
+  border: 0;
+  color: white;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+#inbox {
+  flex: 1;
+  overflow-y: auto;
+  background: #0b141a;
+  padding: 8px;
+}
+
+.inbox-row {
+  background: #111b21;
+  border-radius: 10px;
+  padding: 12px;
+  margin: 8px 0;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.inbox-title { color: #e9edef; font-weight: 600; }
+.inbox-meta { color: #8696a0; font-size: 12px; }
+.unread-pill {
+  background: #25d366;
+  color: #0b141a;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+
+@keyframes slideDown {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}

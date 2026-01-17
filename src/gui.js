@@ -2,6 +2,11 @@ export const chat = document.getElementById("chat");
 export const typing = document.getElementById("typing");
 export const choicesDiv = document.getElementById("choices");
 export const phone = document.getElementById("phone");
+export const inbox = document.getElementById("inbox");
+export const chatView = document.getElementById("chatView");
+export const backBtn = document.getElementById("backBtn");
+export const headerTitle = document.getElementById("headerTitle");
+
 
 export function addMessage(text, who = "them", glitch = false) {
     const msg = document.createElement("div");
@@ -22,4 +27,18 @@ export function typingThen(text, who, glitch = false) {
 
 export function glitchUI(stability) {
     if (stability < 30) phone.classList.add("glitch");
+}
+
+export function showInboxView() {
+  inbox.classList.remove("hidden");
+  chatView.classList.add("hidden");
+  backBtn.classList.add("hidden");
+  headerTitle.innerText = "Chats";
+}
+
+export function showChatView(title) {
+  inbox.classList.add("hidden");
+  chatView.classList.remove("hidden");
+  backBtn.classList.remove("hidden");
+  headerTitle.innerText = title;
 }

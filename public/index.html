@@ -5,19 +5,51 @@
     <title>Chat</title>
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
 
 <audio autoplay loop>
     <source src="music.mp3" type="audio/mpeg">
 </audio>
 
+<!-- LOCK SCREEN -->
+<div id="lockscreen">
+    <div>
+        <div id="lock-time">9:41</div>
+        <div id="lock-date">Monday, October 9</div>
+    </div>
+
+    <div id="notification" class="hidden">
+        <div class="notif-app">Unknown</div>
+        <div class="notif-text">Hey</div>
+        <div class="notif-hint">Tap to open</div>
+    </div>
+
+    <div class="lock-hint">Swipe up to unlock</div>
+</div>
+
+<!-- PHONE UI -->
 <div id="phone">
-    <div id="header">Unknown</div>
-    <div id="chat"></div>
-    <div id="typing"></div>
-    <div id="choices"></div>
+
+    <!-- HEADER -->
+    <div id="header">
+        <button id="backBtn" class="icon-btn hidden">‹</button>
+        <span id="headerTitle">Unknown</span>
+    </div>
+
+    <!-- INBOX -->
+    <div id="inbox" class="hidden"></div>
+
+    <!-- CHAT VIEW -->
+    <div id="chatView">
+        <div id="chat"></div>
+        <div id="typing"></div>
+        <div id="choices"></div>
+    </div>
+
 </div>
 
 <script type="module" src="../src/main.js"></script>
+
 </body>
 </html>

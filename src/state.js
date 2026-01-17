@@ -1,6 +1,28 @@
-export let stability = 50;
+export const vars = {};
 
-export function updateStability(amount) {
-    stability += amount;
-    return stability;
+export function initVars(initialVars = {}) {
+  for (const [k, v] of Object.entries(initialVars)) vars[k] = v;
+}
+
+export function applyEffects(effects = {}) {
+  for (const [k, delta] of Object.entries(effects)) {
+    const current = Number(vars[k] ?? 0);
+    vars[k] = current + Number(delta);
+  }
+}
+
+export function checkCondition(cond) {
+  // cond example: { var:"murnaTrust", op:">=", value:5 }
+  const left = Number(vars[cond.var] ?? 0);
+  const right = Number(cond.value ?? 0);
+
+  switch (cond.op) {
+    case ">=": return left >= right;
+    case "<=": return left <= right;
+    case ">": return left > right;
+    case "<": return left < right;
+    case "==": return left === right;
+    case "!=": return left !== right;
+    default: return false;
+  }
 }
