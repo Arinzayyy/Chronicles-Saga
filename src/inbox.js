@@ -1,5 +1,5 @@
 import { inbox } from "./gui.js";
-import { threads } from "./threads.js";
+import { threads } from "./thread.js";
 import { openThread } from "./main.js";
 
 export function renderInbox() {

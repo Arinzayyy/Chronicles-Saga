@@ -1,0 +1,25 @@
+{
+  "vars": {},
+  "threads": {
+    "murna": {
+      "title": "Unknown",
+      "start": "m1",
+      "nodes": {
+        "m1": {
+          "text": "Hey",
+          "choices": [
+            { "text": "Who is this?", "next": "m2" }
+          ]
+        },
+        "m2": {
+          "text": "You used to text me when things got loud.",
+          "choices": []
+        }
+      }
+    }
+  },
+  "events": [
+    { "id": "incoming_unknown_contact", "type": "incoming", "thread": "murna", "node": "m1" }
+  ]
+}
+This m

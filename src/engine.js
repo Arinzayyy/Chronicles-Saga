@@ -1,5 +1,5 @@
 import { applyEffects, checkCondition } from "./state.js";
-import { ensureThread, addMessageToThread, setThreadNode, markUnread } from "./threads.js";
+import { ensureThread, addMessageToThread, setThreadNode, markUnread } from "./thread.js";
 import { renderInbox } from "./inbox.js";
 import { showNotification } from "./lockscreen.js";
 

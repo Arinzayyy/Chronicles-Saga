@@ -1,9 +1,13 @@
+
 import { addMessage, typingThen, choicesDiv, showInboxView, showChatView, backBtn } from "./gui.js";
 import { initVars } from "./state.js";
-import { threads, clearUnread } from "./threads.js";
+import { threads, clearUnread } from "./thread.js";
 import { renderInbox } from "./inbox.js";
 import { buildThreadsFromJson, runTrigger, applyChoiceEffects } from "./engine.js";
 import { showNotification } from "./lockscreen.js";
+
+console.log("MAIN JS STARTED");
+alert("MAIN JS STARTED");
 
 let data = null;
 let activeThreadId = null;
@@ -122,6 +126,9 @@ const context = {
 
 async function load() {
   const res = await fetch("./scenes.json");
+  if (!res.ok) {
+  throw new Error("Failed to load scenes.json");
+  }
   data = await res.json();
 
   // STEP 4: show the first lockscreen notification

@@ -17,3 +17,10 @@ notification.onclick = () => {
   // main.js will decide what thread/node to open first
   window.dispatchEvent(new CustomEvent("lockscreen:opened"));
 };
+
+lockscreen.onclick = () => {
+  hideLockscreen();
+  window.dispatchEvent(new CustomEvent("lockscreen:opened"));
+};
+
+
