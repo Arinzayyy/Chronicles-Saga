@@ -18,23 +18,112 @@ body {
     flex-direction: column;
     overflow: hidden;
     box-shadow: 0 0 40px rgba(0,0,0,0.7);
+    position: relative; /* helps lockscreen positioning */
 }
 
 /* HEADER */
 #header {
-    background: #075E54;
-    color: #ffffff;
-    padding: 14px;
-    font-weight: 600;
-    text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #075E54;
+  color: #fff;
+  padding: 14px;
+  font-weight: 600;
 }
 
-/* CHAT AREA */
+#headerTitle { 
+  flex: 1; 
+  text-align: center; 
+}
+
+.icon-btn {
+  background: transparent;
+  border: 0;
+  color: white;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+/* INBOX */
+#inbox {
+  flex: 1;
+  overflow-y: auto;
+  background: #0b141a;
+  padding: 8px;
+}
+
+.inbox-row {
+  background: #111b21;
+  border-radius: 10px;
+  padding: 12px;
+  margin: 8px 0;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.inbox-title { 
+  color: #e9edef; 
+  font-weight: 600; 
+}
+
+.inbox-meta { 
+  color: #8696a0; 
+  font-size: 12px; 
+}
+
+.unread-pill {
+  background: #25d366;
+  color: #0b141a;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+/* ===== CHAT VIEW LAYOUT FIX (IMPORTANT) ===== */
+
+/* Chat view must be a flex column so chat scroll works */
+#chatView {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;   /* CRITICAL: allows #chat to scroll inside flex parent */
+}
+
+/* CHAT AREA (scroll container) */
 #chat {
     flex: 1;
+    min-height: 0; /* CRITICAL: prevents pushing choices off-screen */
     padding: 12px;
     overflow-y: auto;
+    overflow-x: hidden;
     background: #0b141a;
+}
+
+/* TYPING INDICATOR */
+#typing {
+    flex: 0 0 auto;
+    font-size: 12px;
+    color: #8696a0;
+    padding: 6px 12px;
+}
+
+/* CHOICES AREA pinned at bottom */
+#choices {
+    flex: 0 0 auto;
+    padding: 10px;
+    background: #0b141a;
+
+    /* If choices get too many, scroll them too */
+    max-height: 40%;
+    overflow-y: auto;
+
+    /* Ensure clickable (prevents chat overlay blocking clicks) */
+    position: relative;
+    z-index: 5;
 }
 
 /* MESSAGE BUBBLES */
@@ -60,19 +149,7 @@ body {
     margin-left: auto;
 }
 
-/* TYPING INDICATOR */
-#typing {
-    font-size: 12px;
-    color: #8696a0;
-    padding: 6px 12px;
-}
-
-/* CHOICES */
-#choices {
-    padding: 10px;
-    background: #0b141a;
-}
-
+/* Choice buttons */
 .choice {
     background: #202c33;
     color: #e9edef;
@@ -134,7 +211,6 @@ body {
     z-index: 10;
 }
 
-
 #lock-time {
     font-size: 48px;
     font-weight: 300;
@@ -181,57 +257,38 @@ body {
     display: none; 
 }
 
-#header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: #075E54;
-  color: #fff;
-  padding: 14px;
-  font-weight: 600;
-}
-
-#headerTitle { flex: 1; text-align: center; }
-
-.icon-btn {
-  background: transparent;
-  border: 0;
-  color: white;
-  font-size: 22px;
-  cursor: pointer;
-}
-
-#inbox {
-  flex: 1;
-  overflow-y: auto;
-  background: #0b141a;
-  padding: 8px;
-}
-
-.inbox-row {
-  background: #111b21;
-  border-radius: 10px;
-  padding: 12px;
-  margin: 8px 0;
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.inbox-title { color: #e9edef; font-weight: 600; }
-.inbox-meta { color: #8696a0; font-size: 12px; }
-.unread-pill {
-  background: #25d366;
-  color: #0b141a;
-  font-weight: 700;
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 12px;
-}
-
-
 @keyframes slideDown {
     from { transform: translateY(-20px); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
+}
+.lock-hint.swipe-anim {
+  animation: swipeHint 1.4s ease-in-out infinite;
+}
+
+@keyframes swipeHint {
+  0%   { transform: translateY(0); opacity: 0.55; }
+  60%  { transform: translateY(-10px); opacity: 0.9; }
+  100% { transform: translateY(0); opacity: 0.55; }
+}
+
+/* "Nope" shake if they tap outside the notification */
+#lockscreen.nope {
+  animation: nopeShake 0.22s ease-in-out;
+}
+
+@keyframes nopeShake {
+  0%   { transform: translateX(0); }
+  25%  { transform: translateX(-6px); }
+  50%  { transform: translateX(6px); }
+  75%  { transform: translateX(-4px); }
+  100% { transform: translateX(0); }
+}
+
+/* Unlock slide-up when notification is tapped */
+#lockscreen.unlocking {
+  animation: unlockSlide 0.26s ease forwards;
+}
+
+@keyframes unlockSlide {
+  to { transform: translateY(-20px); opacity: 0; }
 }

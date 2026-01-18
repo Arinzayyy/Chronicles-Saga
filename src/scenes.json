@@ -1,25 +1,174 @@
 {
-  "vars": {},
+  "vars": {
+    "murnaTrust": 0,
+    "kelvinTrust": 0,
+    "pitchTrust": 0
+  },
   "threads": {
     "murna": {
       "title": "Unknown",
-      "start": "m1",
+      "start": "murna_01",
       "nodes": {
-        "m1": {
-          "text": "Hey",
+        "murna_01": {
+          "text": "yo Viewer...\nthis Halima's line right?\n\nlook i know this is weird but... she gone.\n\nnot ghosted gone\nnot “i’ll be back in 5” gone\ngone gone.",
           "choices": [
-            { "text": "Who is this?", "next": "m2" }
+            { "text": "Who is this?", "next": "murna_who" },
+            { "text": "What do you mean she’s gone?", "next": "murna_gone" },
+            { "text": "Where was she last?", "next": "murna_last" }
           ]
         },
-        "m2": {
-          "text": "You used to text me when things got loud.",
+
+        "murna_who": {
+          "text": "chill. it’s Murna.\nclass clown. spiritual dropout.\ncarries a butter-knife katana and a few shiny rings.\n\nremember me now?\n\ni jacked her phone after the trail ran cold.\nshe woulda wanted you in.\n\nyou’re that Righteous sightseer type, right?\nmaybe you can see what i can't.",
+          "choices": [
+            { "text": "What happened?", "next": "murna_what_happened" },
+            { "text": "Okay. Keep going.", "next": "murna_why_you" }
+          ]
+        },
+
+        "murna_gone": {
+          "text": "gone as in “wiped off the map.”\nbounty job she picked up got real weird.\nname wiped from the Nexus network.\nno aura trails. no surveillance threads.\n\nit’s like she un-existed.\n\ni jacked her phone after the trail ran cold.\n\nyou’re that Righteous sightseer type, right?\nmaybe you can see what i can't.",
+          "choices": [
+            { "text": "What happened?", "next": "murna_what_happened" },
+            { "text": "Okay. Keep going.", "next": "murna_why_you" }
+          ]
+        },
+
+        "murna_last": {
+          "text": "last ping we got was a warehouse near the Yelwa border.\nsmelled off.\nlike... copper and sugar.\n\nfound these weird skin flakes and chains.\nshe was fighting something that didn't bleed right.\n\ni jacked her phone after the trail ran cold.\n\nyou’re that Righteous sightseer type, right?\nmaybe you can see what i can't.",
+          "choices": [
+            { "text": "What happened?", "next": "murna_what_happened" },
+            { "text": "Okay. Keep going.", "next": "murna_why_you" }
+          ]
+        },
+
+        "murna_what_happened": {
+          "text": "bounty job she picked up got real weird.\nname wiped from the Nexus network.\nno aura trails. no surveillance threads.\n\nit’s like she un-existed.\n\nfound these skin flakes and chains.\nshe was fighting something that didn’t bleed right.\n\nif that ain’t spooky, she left this on her voice recorder:\n\n“They don’t like sunlight. Or prayers. Or names.”\n\nwhat kinda bounty says that?",
+          "choices": [
+            { "text": "…Continue.", "next": "murna_why_you" }
+          ]
+        },
+
+        "murna_why_you": {
+          "text": "look… she’s really gone.\n\nbut before she vanished, she dropped your name.\nnot like a “help me” kind of drop.\nmore like…\n\n“if anything happens to me, you find the viewer.”\n\nand now here i am.",
+          "choices": [
+            { "text": "How do you even know who I am?", "next": "murna_how_know" },
+            { "text": "Why would she trust me?", "next": "murna_why_trust" },
+            { "text": "You’ve never messaged me before.", "next": "murna_never" }
+          ]
+        },
+
+        "murna_how_know": {
+          "text": "called in a favor.\nhad Kelvin look you up.\n\nyou know how he is — digital messiah with a God-complex and bad sleep habits.\n\nsaid you and him “already go back.”\nhis words. not mine.",
+          "choices": [
+            { "text": "Alright.", "next": "murna_help_prompt" }
+          ]
+        },
+
+        "murna_why_trust": {
+          "text": "no clue.\n\nbut she did.\nand that’s enough for me.\n\nKelvin vouched for you too.\nsaid you and him “already go back.”\nhis words. not mine.",
+          "choices": [
+            { "text": "Alright.", "next": "murna_help_prompt" }
+          ]
+        },
+
+        "murna_never": {
+          "text": "true.\n\nbut i know of you.\nand Kelvin knows you.\n\nhe called you “already go back” people.\nhis words. not mine.",
+          "choices": [
+            { "text": "Alright.", "next": "murna_help_prompt" }
+          ]
+        },
+
+        "murna_help_prompt": {
+          "text": "anyway.\n\ni’m gonna follow what leads i got.\nyou just do what you do best.\nlook. see.\n\ntell me where the path twists before i walk into another trap.\n\ncool?",
+          "choices": [
+            { "text": "I’ll help. Keep feeding me data.", "next": "system_next_morning" },
+            { "text": "I need more details before I commit.", "next": "system_next_morning" },
+            { "text": "She trusted me. That’s enough.", "next": "system_next_morning" }
+          ]
+        },
+
+        "system_next_morning": {
+          "text": "[SYSTEM — Next Morning]\nYour phone lights up at 06:41.",
+          "choices": [
+            { "text": "Open.", "next": "kelvin_intro" }
+          ]
+        },
+
+        "kelvin_intro": {
+          "text": "KELVIN:\nmorning.\nhope Murna didn’t scare you off.",
+          "choices": [
+            { "text": "He’s fine. We’re making progress.", "next": "kelvin_data" },
+            { "text": "He went radio silent all night.", "next": "kelvin_data" },
+            { "text": "You two really need to work on communication.", "next": "kelvin_data" }
+          ]
+        },
+
+        "kelvin_data": {
+          "text": "KELVIN:\nyeah… he’s allergic to teamwork.\n\nbut the data you fed him last night was solid.\n\ni’m tracking movement on the border cameras — no aura, no ID tags.\nthing is…\n\nthe figure matches the height & gait of whoever was with Halima in that warehouse footage.",
+          "choices": [
+            { "text": "Send me the footage.", "next": "kelvin_clip" },
+            { "text": "What’s the next move?", "next": "kelvin_clip" }
+          ]
+        },
+
+        "kelvin_clip": {
+          "text": "KELVIN:\nsending now.\n\n[📹 CLIP — 04 sec — Border Crossing Cam]\nLow-res, black & white.\nFigure walks stiffly, dragging something wrapped in cloth.\n\nFor a fraction of a second, its head turns toward the camera — eyes glint pale.\n\nThen it blurs out of frame.",
+          "choices": [
+            { "text": "That’s not normal.", "next": "murna_following" }
+          ]
+        },
+
+        "murna_following": {
+          "text": "MURNA:\nsaw that.\nfollowing.\n\nwarehouse trail → dry creek bed → old tunnel.\n\nKelvin, patch me in if you catch heat signatures.",
+          "choices": [
+            { "text": "Who else is with you?", "next": "pitch_intro" },
+            { "text": "Be careful.", "next": "pitch_intro" }
+          ]
+        },
+
+        "pitch_intro": {
+          "text": "KELVIN:\nviewer, meet Pitch.\n\nPITCH:\nso you’re the “eyes.”\ndon’t slow me down.\n\ni’m not here for your little trust exercises — i’m here to drag Murna back before he gets himself eaten.",
+          "choices": [
+            { "text": "Nice to meet you too.", "next": "pitch_reply_1" },
+            { "text": "If you’re with Kelvin, I trust you.", "next": "pitch_reply_2" },
+            { "text": "Halima comes first.", "next": "pitch_reply_3" }
+          ]
+        },
+
+        "pitch_reply_1": {
+          "text": "PITCH:\nhm.\npolite.\nrare for people Kelvin vouches for.",
+          "choices": [
+            { "text": "What now?", "next": "kelvin_wrap" }
+          ]
+        },
+
+        "pitch_reply_2": {
+          "text": "PITCH:\ndon’t.\ntrust makes you sloppy.",
+          "choices": [
+            { "text": "What now?", "next": "kelvin_wrap" }
+          ]
+        },
+
+        "pitch_reply_3": {
+          "text": "PITCH:\ngood.\nkeep it that way.",
+          "choices": [
+            { "text": "What now?", "next": "kelvin_wrap" }
+          ]
+        },
+
+        "kelvin_wrap": {
+          "text": "KELVIN:\nalright, let’s move.\n\ni’ll feed both of you coordinates as soon as i pin Murna’s trail.\n\nviewer, you’ll get visuals first.\nuse that Sight.\n\n…tell me what i’m really looking at.",
+          "choices": [
+            { "text": "[End of Scene]", "next": "end" }
+          ]
+        },
+
+        "end": {
+          "text": "[SYSTEM]\nTo be continued…",
           "choices": []
         }
       }
     }
-  },
-  "events": [
-    { "id": "incoming_unknown_contact", "type": "incoming", "thread": "murna", "node": "m1" }
-  ]
+  }
 }
-This m
