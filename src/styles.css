@@ -254,7 +254,7 @@ body {
 }
 
 .hidden { 
-    display: none; 
+    display: none !important; 
 }
 
 @keyframes slideDown {

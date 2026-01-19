@@ -4,6 +4,13 @@
     "kelvinTrust": 0,
     "pitchTrust": 0
   },
+  "events": [
+    { "id": "incoming_unknown_contact", "type": "incoming", "thread": "murna", "node": "murna_01" },
+    { "id": "incoming_kelvin_1", "type": "incoming", "thread": "kelvin", "node": "kelvin_intro" },
+    { "id": "incoming_pitch_1", "type": "incoming", "thread": "pitch", "node": "pitch_intro" },
+    { "id": "incoming_murna_following", "type": "incoming", "thread": "murna", "node": "murna_following" },
+    { "id": "incoming_kelvin_wrap", "type": "incoming", "thread": "kelvin", "node": "kelvin_wrap" }
+  ],
   "threads": {
     "murna": {
       "title": "Unknown",
@@ -91,10 +98,65 @@
         "system_next_morning": {
           "text": "[SYSTEM — Next Morning]\nYour phone lights up at 06:41.",
           "choices": [
-            { "text": "Open.", "next": "kelvin_intro" }
+            {
+              "text": "Open.",
+              "next": "murna_wait_inbox",
+              "action": { "type": "trigger", "trigger": "incoming_kelvin_1" }
+            }
           ]
         },
 
+        "murna_wait_inbox": {
+          "text": "[SYSTEM]\nA new chat appears in your inbox.",
+          "choices": [
+            { "text": "Check inbox.", "next": "murna_wait_inbox_2" }
+          ]
+        },
+
+        "murna_wait_inbox_2": {
+          "text": "[SYSTEM]\nTap Kelvin to read.",
+          "choices": []
+        },
+
+        "murna_following": {
+          "text": "MURNA:\nsaw that.\nfollowing.\n\nwarehouse trail → dry creek bed → old tunnel.\n\nKelvin, patch me in if you catch heat signatures.",
+          "choices": [
+            {
+              "text": "Who else is with you?",
+              "next": "murna_after_pitch_ping",
+              "action": { "type": "trigger", "trigger": "incoming_pitch_1" }
+            },
+            {
+              "text": "Be careful.",
+              "next": "murna_after_pitch_ping",
+              "action": { "type": "trigger", "trigger": "incoming_pitch_1" }
+            }
+          ]
+        },
+
+        "murna_after_pitch_ping": {
+          "text": "[SYSTEM]\nAnother chat pops up.",
+          "choices": [
+            { "text": "Check inbox.", "next": "murna_after_pitch_ping_2" }
+          ]
+        },
+
+        "murna_after_pitch_ping_2": {
+          "text": "[SYSTEM]\nTap Pitch to read.",
+          "choices": []
+        },
+
+        "end": {
+          "text": "[SYSTEM]\nTo be continued…",
+          "choices": []
+        }
+      }
+    },
+
+    "kelvin": {
+      "title": "Kelvin",
+      "start": "kelvin_intro",
+      "nodes": {
         "kelvin_intro": {
           "text": "KELVIN:\nmorning.\nhope Murna didn’t scare you off.",
           "choices": [
@@ -115,18 +177,37 @@
         "kelvin_clip": {
           "text": "KELVIN:\nsending now.\n\n[📹 CLIP — 04 sec — Border Crossing Cam]\nLow-res, black & white.\nFigure walks stiffly, dragging something wrapped in cloth.\n\nFor a fraction of a second, its head turns toward the camera — eyes glint pale.\n\nThen it blurs out of frame.",
           "choices": [
-            { "text": "That’s not normal.", "next": "murna_following" }
+            {
+              "text": "That’s not normal.",
+              "next": "kelvin_after_clip",
+              "action": { "type": "trigger", "trigger": "incoming_murna_following" }
+            }
           ]
         },
 
-        "murna_following": {
-          "text": "MURNA:\nsaw that.\nfollowing.\n\nwarehouse trail → dry creek bed → old tunnel.\n\nKelvin, patch me in if you catch heat signatures.",
+        "kelvin_after_clip": {
+          "text": "KELVIN:\nI just pinged Murna.\nCheck his chat.",
+          "choices": []
+        },
+
+        "kelvin_wrap": {
+          "text": "KELVIN:\nalright, let’s move.\n\ni’ll feed both of you coordinates as soon as i pin Murna’s trail.\n\nviewer, you’ll get visuals first.\nuse that Sight.\n\n…tell me what i’m really looking at.",
           "choices": [
-            { "text": "Who else is with you?", "next": "pitch_intro" },
-            { "text": "Be careful.", "next": "pitch_intro" }
+            { "text": "[End of Scene]", "next": "kelvin_end" }
           ]
         },
 
+        "kelvin_end": {
+          "text": "[SYSTEM]\nTo be continued…",
+          "choices": []
+        }
+      }
+    },
+
+    "pitch": {
+      "title": "Pitch",
+      "start": "pitch_intro",
+      "nodes": {
         "pitch_intro": {
           "text": "KELVIN:\nviewer, meet Pitch.\n\nPITCH:\nso you’re the “eyes.”\ndon’t slow me down.\n\ni’m not here for your little trust exercises — i’m here to drag Murna back before he gets himself eaten.",
           "choices": [
@@ -139,36 +220,42 @@
         "pitch_reply_1": {
           "text": "PITCH:\nhm.\npolite.\nrare for people Kelvin vouches for.",
           "choices": [
-            { "text": "What now?", "next": "kelvin_wrap" }
+            {
+              "text": "What now?",
+              "next": "pitch_close",
+              "action": { "type": "trigger", "trigger": "incoming_kelvin_wrap" }
+            }
           ]
         },
 
         "pitch_reply_2": {
           "text": "PITCH:\ndon’t.\ntrust makes you sloppy.",
           "choices": [
-            { "text": "What now?", "next": "kelvin_wrap" }
+            {
+              "text": "What now?",
+              "next": "pitch_close",
+              "action": { "type": "trigger", "trigger": "incoming_kelvin_wrap" }
+            }
           ]
         },
 
         "pitch_reply_3": {
           "text": "PITCH:\ngood.\nkeep it that way.",
           "choices": [
-            { "text": "What now?", "next": "kelvin_wrap" }
+            {
+              "text": "What now?",
+              "next": "pitch_close",
+              "action": { "type": "trigger", "trigger": "incoming_kelvin_wrap" }
+            }
           ]
         },
 
-        "kelvin_wrap": {
-          "text": "KELVIN:\nalright, let’s move.\n\ni’ll feed both of you coordinates as soon as i pin Murna’s trail.\n\nviewer, you’ll get visuals first.\nuse that Sight.\n\n…tell me what i’m really looking at.",
-          "choices": [
-            { "text": "[End of Scene]", "next": "end" }
-          ]
-        },
-
-        "end": {
-          "text": "[SYSTEM]\nTo be continued…",
+        "pitch_close": {
+          "text": "PITCH:\nStay sharp.\nIf Kelvin pings you, answer.",
           "choices": []
         }
       }
     }
   }
 }
+
