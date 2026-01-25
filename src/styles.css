@@ -190,6 +190,95 @@ body {
     95% { transform: translate(0, -1px); }
     96% { transform: translate(0); }
 }
+/* ===== HOME SCREEN ===== */
+
+#homeView {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #0b141a;
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Top clock area */
+#homeTop {
+  display: flex;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+#homeClock {
+  font-size: 44px;
+  font-weight: 300;
+  color: #e9edef;
+  opacity: 0.95;
+}
+
+/* App grid */
+#appGrid {
+  margin-top: 26px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+/* App icon */
+.appIcon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* App icon background */
+.appEmoji {
+  width: 62px;
+  height: 62px;
+  border-radius: 16px;
+  background: #111b21;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.35);
+}
+
+/* App label */
+.appLabel {
+  font-size: 12px;
+  color: #e9edef;
+  opacity: 0.75;
+}
+
+/* Bottom dock */
+#homeDock {
+  margin-top: auto;
+  padding-top: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Swipe indicator pill */
+.dockPill {
+  width: 120px;
+  height: 5px;
+  border-radius: 999px;
+  background: #e9edef;
+  opacity: 0.22;
+}
+
+/* Swipe hint text */
+.homeHint {
+  font-size: 12px;
+  color: #e9edef;
+  opacity: 0.5;
+}
 
 /* LOCK SCREEN */
 #lockscreen {
@@ -291,4 +380,26 @@ body {
 
 @keyframes unlockSlide {
   to { transform: translateY(-20px); opacity: 0; }
+}
+
+#toast {
+  position: absolute;
+  top: 58px;
+  left: 10px;
+  right: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #202c33;
+  color: #e9edef;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  cursor: pointer;
+  z-index: 9;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+#toast.show {
+  opacity: 1;
+  transform: translateY(0);
 }

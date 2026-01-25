@@ -1,37 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Chat</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <title>Chat</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
 
-
-<!-- LOCK SCREEN -->
-<div id="lockscreen">
+  <!-- LOCK SCREEN -->
+  <div id="lockscreen">
     <div>
-        <div id="lock-time">9:41</div>
-        <div id="lock-date">Monday, October 9</div>
+      <div id="lock-time">9:41</div>
+      <div id="lock-date">Monday, October 9</div>
     </div>
 
     <div id="notification" class="hidden">
-        <div class="notif-app">Unknown</div>
-        <div class="notif-text">Hey</div>
-        <div class="notif-hint">Tap to open</div>
+      <div class="notif-app">Unknown</div>
+      <div class="notif-text">Hey</div>
+      <div class="notif-hint">Tap to open</div>
     </div>
 
     <div class="lock-hint">Swipe up to unlock</div>
-</div>
+  </div>
 
-<!-- PHONE UI -->
-<div id="phone">
+  <!-- PHONE UI -->
+  <div id="phone">
 
     <!-- HEADER -->
     <div id="header">
-        <button id="backBtn" class="icon-btn hidden">‹</button>
-        <span id="headerTitle">Unknown</span>
+      <button id="backBtn" class="icon-btn hidden">‹</button>
+      <span id="headerTitle">Unknown</span>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="hidden"></div>
+
+    <!-- HOME VIEW -->
+    <div id="homeView" class="hidden">
+      <div id="homeTop">
+        <div id="homeClock">9:41</div>
+      </div>
+
+      <div id="appGrid">
+        <div id="appChats" class="appIcon">
+          <div class="appEmoji">💬</div>
+          <div class="appLabel">Chats</div>
+        </div>
+      </div>
+
+      <div id="homeDock">
+        <div class="dockPill"></div>
+        
+      </div>
     </div>
 
     <!-- INBOX -->
@@ -39,14 +60,16 @@
 
     <!-- CHAT VIEW -->
     <div id="chatView">
-        <div id="chat"></div>
-        <div id="typing"></div>
-        <div id="choices"></div>
+      <div id="chat"></div>
+      <div id="typing"></div>
+      <div id="choices"></div>
     </div>
 
-</div>
+  </div>
 
-<script type="module" src="./main.js"></script>
+  <script type="module" src="./main.js"></script>
 
 </body>
 </html>
+
+

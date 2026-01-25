@@ -1,158 +1,234 @@
+// main.js
+// Central game controller
+// Handles narrative flow, thread state, and screen navigation
 
-import { addMessage, typingThen, choicesDiv, showInboxView, showChatView, backBtn } from "./gui.js";
-import { initVars } from "./state.js";
-import { threads, clearUnread } from "./thread.js";
-import { renderInbox } from "./inbox.js";
-import { buildThreadsFromJson, runTrigger, applyChoiceEffects } from "./engine.js";
-import { showNotification } from "./lockscreen.js";
+import {
+  addMessage,
+  typingThen,
+  choicesDiv,
+  showInboxView,
+  showChatView,
+  backBtn,
+  showToast
+} from "./gui.js"
 
-console.log("MAIN JS STARTED");
-alert("MAIN JS STARTED");
+import { initVars } from "./state.js"
+import { threads, clearUnread } from "./thread.js"
+import { renderInbox } from "./inbox.js"
+import { buildThreadsFromJson, runTrigger, applyChoiceEffects } from "./engine.js"
+import { showNotification } from "./lockscreen.js"
+import { initHome, showHome } from "./home.js"
 
-let data = null;
-let activeThreadId = null;
+console.log("MAIN JS STARTED")
+alert("MAIN JS STARTED")
 
-// queue to support incoming messages landing in background threads
-const incomingQueue = [];
+let data = null
+let activeThreadId = null
+let isUnlocked = false
+
+// Tracks which screen the user is on
+// home | inbox | chat
+let currentScreen = "home"
+
+// Queue for background incoming messages
+const incomingQueue = []
 
 function getActiveThreadId() {
-  return activeThreadId;
+  return activeThreadId
 }
 
+// ===== SCREEN HELPERS =====
+
+function openHome() {
+  currentScreen = "home"
+  showHome()
+}
+
+function openInbox() {
+  currentScreen = "inbox"
+  showInboxView()
+  renderInbox()
+}
+
+// ===== INCOMING MESSAGE QUEUE =====
+
 function enqueueIncoming(threadId, nodeKey) {
-  incomingQueue.push({ threadId, nodeKey });
-  processIncomingQueue();
+  incomingQueue.push({ threadId, nodeKey })
+  processIncomingQueue()
 }
 
 function applyEventAction(action) {
-  if (action.type === "incoming") enqueueIncoming(action.thread, action.node);
-  if (action.type === "trigger") runTrigger(data, action.trigger, context);
+  if (action.type === "incoming") enqueueIncoming(action.thread, action.node)
+  if (action.type === "trigger") runTrigger(data, action.trigger, context)
 }
 
 function processIncomingQueue() {
-  // deliver immediately, but mark unread if not active
   while (incomingQueue.length) {
-    const item = incomingQueue.shift();
-    deliverNode(item.threadId, item.nodeKey);
+    const item = incomingQueue.shift()
+    deliverNode(item.threadId, item.nodeKey)
   }
 }
+
+// ===== MESSAGE DELIVERY =====
 
 function deliverNode(threadId, nodeKey) {
-  const isActive = threadId === activeThreadId;
+  const isActive = threadId === activeThreadId
 
-  // store to history always
-  const t = threads.get(threadId);
-  const node = data.threads[threadId].nodes[nodeKey];
-  t.currentNode = nodeKey;
-  t.messages.push({ who: "them", text: node.text ?? "", glitch: !!node.glitch });
+  const t = threads.get(threadId)
+  const node = data.threads[threadId].nodes[nodeKey]
 
+  t.currentNode = nodeKey
+  t.messages.push({
+    who: "them",
+    text: node.text ?? "",
+    glitch: !!node.glitch
+  })
+
+  // Message for background thread
   if (!isActive) {
-    t.unread += 1;
-    renderInbox();
-    // optional: also show notification if lockscreen is hidden
-    // showNotification(`${data.threads[threadId].title}: ${node.text ?? ""}`);
-    return;
+    t.unread += 1
+    renderInbox()
+
+    if (isUnlocked) {
+      const title = data.threads[threadId].title
+      const preview = node.text ?? ""
+      showToast(`${title}: ${preview}`, () => openThread(threadId))
+    }
+
+    return
   }
 
-  typingThen(node.text ?? "", "them", !!node.glitch);
-  renderChoices(threadId, nodeKey);
+  typingThen(node.text ?? "", "them", !!node.glitch)
+  renderChoices(threadId, nodeKey)
 }
+
+// ===== CHOICES =====
 
 function renderChoices(threadId, nodeKey) {
-  const node = data.threads[threadId].nodes[nodeKey];
-  choicesDiv.innerHTML = "";
+  const node = data.threads[threadId].nodes[nodeKey]
+  choicesDiv.innerHTML = ""
 
-  if (!node || !node.choices) return;
+  if (!node || !node.choices) return
 
   node.choices.forEach(choice => {
-    const btn = document.createElement("div");
-    btn.className = "choice";
-    btn.innerText = choice.text;
+    const btn = document.createElement("div")
+    btn.className = "choice"
+    btn.innerText = choice.text
 
     btn.onclick = () => {
-      addMessage(choice.text, "you");
+      addMessage(choice.text, "you")
 
-      // persist to history too
-      threads.get(threadId).messages.push({ who: "you", text: choice.text, glitch: false });
+      threads.get(threadId).messages.push({
+        who: "you",
+        text: choice.text,
+        glitch: false
+      })
 
-      applyChoiceEffects(choice);
+      applyChoiceEffects(choice)
 
-      // triggers or next nodes
       if (choice.action?.type === "trigger") {
-        runTrigger(data, choice.action.trigger, context);
-        return;
+        runTrigger(data, choice.action.trigger, context)
+        return
       }
-      if (choice.next) {
-        deliverNode(threadId, choice.next);
-      }
-    };
 
-    choicesDiv.appendChild(btn);
-  });
+      if (choice.next) {
+        deliverNode(threadId, choice.next)
+      }
+    }
+
+    choicesDiv.appendChild(btn)
+  })
 }
 
+// ===== THREAD OPEN =====
+
 export function openThread(threadId) {
-  activeThreadId = threadId;
+  currentScreen = "chat"
+  activeThreadId = threadId
 
-  const t = threads.get(threadId);
-  clearUnread(threadId);
-  renderInbox();
+  const t = threads.get(threadId)
+  clearUnread(threadId)
+  renderInbox()
 
-  // clear UI chat
-  document.getElementById("chat").innerHTML = "";
-  choicesDiv.innerHTML = "";
+  document.getElementById("chat").innerHTML = ""
+  choicesDiv.innerHTML = ""
 
-  // replay history
-  for (const m of t.messages) addMessage(m.text, m.who, m.glitch);
+  for (const m of t.messages) {
+    addMessage(m.text, m.who, m.glitch)
+  }
 
-  showChatView(t.title);
+  showChatView(t.title)
 
-  // show choices for current node
-  if (t.currentNode) renderChoices(threadId, t.currentNode);
-  else {
-    // start thread if never started
-    const startKey = data.threads[threadId].start;
-    deliverNode(threadId, startKey);
+  if (t.currentNode) {
+    renderChoices(threadId, t.currentNode)
+  } else {
+    const startKey = data.threads[threadId].start
+    deliverNode(threadId, startKey)
   }
 }
 
-// Context passed into engine trigger runner
+// ===== ENGINE CONTEXT =====
+
 const context = {
   getActiveThreadId,
   openThread,
   enqueueIncoming,
   applyEventAction
-};
-
-async function load() {
-  const res = await fetch("./scenes.json");
-  if (!res.ok) {
-  throw new Error("Failed to load scenes.json");
-  }
-  data = await res.json();
-
-  // STEP 4: show the first lockscreen notification
-  const firstThreadId = "murna";
-  const firstNodeId = data.threads[firstThreadId].start;
-  const previewText = data.threads[firstThreadId].nodes[firstNodeId].text;
-  const title = data.threads[firstThreadId].title;
-
-  showNotification(previewText, title);
-
-  initVars(data.vars || {});
-  buildThreadsFromJson(data);
-  renderInbox();
-  showInboxView();
-
-  window.addEventListener("lockscreen:opened", () => {
-    runTrigger(data, "incoming_unknown_contact", context);
-    openThread(firstThreadId);
-  });
 }
 
-backBtn.onclick = () => {
-  showInboxView();
-  renderInbox();
-};
+// ===== LOAD =====
 
-load();
+async function load() {
+  const res = await fetch("./scenes.json")
+  if (!res.ok) throw new Error("Failed to load scenes.json")
+  data = await res.json()
+
+  const firstThreadId = "murna"
+  const firstNodeId = data.threads[firstThreadId].start
+  const previewText = data.threads[firstThreadId].nodes[firstNodeId].text
+  const title = data.threads[firstThreadId].title
+
+  showNotification(previewText, title)
+
+  initVars(data.vars || {})
+  buildThreadsFromJson(data)
+  renderInbox()
+  initHome()
+  openHome()
+
+  // Home screen requests opening inbox (tap Chats icon or swipe)
+  window.addEventListener("home:open_inbox", () => {
+    openInbox()
+  })
+
+  // Unlock from notification goes straight to first chat
+  window.addEventListener("lockscreen:opened", () => {
+    isUnlocked = true
+    runTrigger(data, "incoming_unknown_contact", context)
+    openThread(firstThreadId)
+  })
+
+  // Unlock from swipe goes to home
+  window.addEventListener("lockscreen:unlocked_home", () => {
+    isUnlocked = true
+    openHome()
+  })
+}
+
+// ===== BACK BUTTON =====
+
+backBtn.onclick = () => {
+  if (currentScreen === "chat") {
+    openInbox()
+    return
+  }
+
+  if (currentScreen === "inbox") {
+    openHome()
+    return
+  }
+}
+
+load()
+
+
