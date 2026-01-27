@@ -1,405 +1,392 @@
-body {
-    background: #0b141a;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    font-family: "Segoe UI", Helvetica, Arial, sans-serif;
-    margin: 0;
+:root{
+  --bg: #070c10;
+  --panel: rgba(18, 28, 34, 0.85);
+  --panel-2: rgba(17, 27, 33, 0.92);
+  --stroke: rgba(255,255,255,0.08);
+
+  --text: #e9edef;
+  --muted: rgba(233,237,239,0.62);
+
+  --brand: #1bdc89;
+  --brand-2: #0aa06e;
+
+  --bubble-them: rgba(32, 44, 51, 0.92);
+  --bubble-you: rgba(0, 92, 75, 0.92);
+
+  --shadow: 0 18px 50px rgba(0,0,0,0.6);
+  --radius: 18px;
 }
 
-/* PHONE CONTAINER */
+*{ box-sizing:border-box; }
+
+body {
+  background:
+    radial-gradient(1200px 900px at 30% 15%, rgba(27,220,137,0.10), transparent 55%),
+    radial-gradient(900px 700px at 85% 30%, rgba(0,170,255,0.08), transparent 55%),
+    var(--bg);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  font-family:"Segoe UI", Helvetica, Arial, sans-serif;
+  margin:0;
+  color:var(--text);
+}
+
+/* PHONE */
 #phone {
-    width: 360px;
-    height: 640px;
-    background: #0b141a;
-    border-radius: 18px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    box-shadow: 0 0 40px rgba(0,0,0,0.7);
-    position: relative; /* helps lockscreen positioning */
+  width: 360px;
+  height: 640px;
+  border-radius: 26px;
+  overflow: hidden;
+  position: relative;
+  background: rgba(11, 20, 26, 0.92);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--stroke);
+  display: flex;
+  flex-direction: column;
 }
 
 /* HEADER */
 #header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: #075E54;
-  color: #fff;
-  padding: 14px;
-  font-weight: 600;
+  display:flex;
+  align-items:center;
+  gap: 12px;
+  padding: 14px 14px;
+  background: linear-gradient(180deg, rgba(7,92,84,0.92), rgba(7,92,84,0.74));
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(10px);
 }
 
-#headerTitle { 
-  flex: 1; 
-  text-align: center; 
+#headerTitle {
+  flex: 1;
+  text-align: center;
+  font-weight: 700;
+  letter-spacing: 0.2px;
 }
 
 .icon-btn {
-  background: transparent;
-  border: 0;
-  color: white;
-  font-size: 22px;
-  cursor: pointer;
-}
-
-/* INBOX */
-#inbox {
-  flex: 1;
-  overflow-y: auto;
-  background: #0b141a;
-  padding: 8px;
-}
-
-.inbox-row {
-  background: #111b21;
+  width: 34px;
+  height: 34px;
   border-radius: 10px;
-  padding: 12px;
-  margin: 8px 0;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.10);
+  color: white;
+  font-size: 20px;
   cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition: transform 120ms ease, background 120ms ease;
 }
+.icon-btn:active { transform: scale(0.98); }
+.icon-btn:hover { background: rgba(255,255,255,0.14); }
 
-.inbox-title { 
-  color: #e9edef; 
-  font-weight: 600; 
-}
-
-.inbox-meta { 
-  color: #8696a0; 
-  font-size: 12px; 
-}
-
-.unread-pill {
-  background: #25d366;
-  color: #0b141a;
-  font-weight: 700;
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 12px;
-}
-
-/* ===== CHAT VIEW LAYOUT FIX (IMPORTANT) ===== */
-
-/* Chat view must be a flex column so chat scroll works */
-#chatView {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;   /* CRITICAL: allows #chat to scroll inside flex parent */
-}
-
-/* CHAT AREA (scroll container) */
-#chat {
-    flex: 1;
-    min-height: 0; /* CRITICAL: prevents pushing choices off-screen */
-    padding: 12px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    background: #0b141a;
-}
-
-/* TYPING INDICATOR */
-#typing {
-    flex: 0 0 auto;
-    font-size: 12px;
-    color: #8696a0;
-    padding: 6px 12px;
-}
-
-/* CHOICES AREA pinned at bottom */
-#choices {
-    flex: 0 0 auto;
-    padding: 10px;
-    background: #0b141a;
-
-    /* If choices get too many, scroll them too */
-    max-height: 40%;
-    overflow-y: auto;
-
-    /* Ensure clickable (prevents chat overlay blocking clicks) */
-    position: relative;
-    z-index: 5;
-}
-
-/* MESSAGE BUBBLES */
-.message {
-    max-width: 75%;
-    padding: 8px 10px;
-    margin: 6px 0;
-    border-radius: 8px;
-    font-size: 14px;
-    line-height: 1.3;
-    position: relative;
-    animation: fadeIn 0.25s ease;
-}
-
-.them {
-    background: #202c33;
-    color: #e9edef;
-}
-
-.you {
-    background: #005c4b;
-    color: #e9edef;
-    margin-left: auto;
-}
-
-/* Choice buttons */
-.choice {
-    background: #202c33;
-    color: #e9edef;
-    padding: 10px;
-    border-radius: 8px;
-    margin-bottom: 8px;
-    text-align: center;
-    cursor: pointer;
-    user-select: none;
-}
-
-.choice:hover {
-    background: #2a3942;
-}
-
-/* GLITCH EFFECT */
-.glitch {
-    animation: glitch 2.5s infinite;
-}
-
-/* ANIMATIONS */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(4px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes glitch {
-    0% { transform: translate(0); }
-    92% { transform: translate(0); }
-    93% { transform: translate(-1px, 0); }
-    94% { transform: translate(1px, 0); }
-    95% { transform: translate(0, -1px); }
-    96% { transform: translate(0); }
-}
-/* ===== HOME SCREEN ===== */
-
+/* HOME */
 #homeView {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: #0b141a;
+  display:flex;
+  flex-direction:column;
+  background:
+    radial-gradient(800px 500px at 25% 0%, rgba(27,220,137,0.10), transparent 60%),
+    rgba(11, 20, 26, 0.92);
   padding: 18px;
   position: relative;
   overflow: hidden;
 }
 
-/* Top clock area */
-#homeTop {
-  display: flex;
-  justify-content: center;
-  margin-top: 18px;
-}
-
 #homeClock {
-  font-size: 44px;
+  font-size: 46px;
   font-weight: 300;
-  color: #e9edef;
+  color: var(--text);
   opacity: 0.95;
+  letter-spacing: 0.6px;
 }
 
-/* App grid */
 #appGrid {
   margin-top: 26px;
-  display: grid;
+  display:grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 14px;
 }
 
-/* App icon */
-.appIcon {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  user-select: none;
-}
-
-/* App icon background */
+.appIcon { gap: 7px; }
 .appEmoji {
   width: 62px;
   height: 62px;
-  border-radius: 16px;
-  background: #111b21;
+  border-radius: 18px;
+  background: transparent;   /* remove background */
+  box-shadow: none;          /* remove shadow */
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 26px;
-  box-shadow: 0 8px 18px rgba(0,0,0,0.35);
+}
+.appIcon:active .appEmoji { transform: scale(0.98); }
+.appLabel { color: var(--muted); }
+
+/* INBOX */
+#inbox {
+  flex: 1;
+  overflow-y: auto;
+  background: rgba(11,20,26,0.92);
+  padding: 10px;
 }
 
-/* App label */
-.appLabel {
+.inbox-row {
+  background: rgba(17,27,33,0.78);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px;
+  padding: 12px;
+  margin: 10px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: transform 120ms ease, background 120ms ease, border 120ms ease;
+}
+.inbox-row:hover {
+  background: rgba(17,27,33,0.92);
+  border: 1px solid rgba(255,255,255,0.10);
+  transform: translateY(-1px);
+}
+
+.inbox-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.08);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight: 800;
+  color: rgba(233,237,239,0.9);
+}
+
+.inbox-main { flex: 1; min-width: 0; }
+.inbox-title { font-weight: 700; color: var(--text); }
+.inbox-preview {
+  margin-top: 3px;
   font-size: 12px;
-  color: #e9edef;
-  opacity: 0.75;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Bottom dock */
-#homeDock {
-  margin-top: auto;
-  padding-top: 18px;
+.inbox-meta {
+  display:flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.inbox-time {
+  font-size: 11px;
+  color: rgba(233,237,239,0.42);
+}
+
+.unread-pill {
+  background: var(--brand);
+  color: #04100b;
+  font-weight: 900;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 12px;
+  box-shadow: 0 8px 18px rgba(27,220,137,0.18);
+}
+
+/* CHAT VIEW */
+#chatView {
+  flex: 1;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+  background:
+    radial-gradient(900px 800px at 40% 30%, rgba(27,220,137,0.06), transparent 60%),
+    rgba(11,20,26,0.92);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 10px;
+  overflow: hidden;
 }
 
-/* Swipe indicator pill */
-.dockPill {
-  width: 120px;
-  height: 5px;
-  border-radius: 999px;
-  background: #e9edef;
-  opacity: 0.22;
+#chat {
+  flex: 1;
+  min-height: 0;
+  padding: 14px 12px 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 10px;
 }
 
-/* Swipe hint text */
-.homeHint {
+#typing {
+  flex: 0 0 auto;
   font-size: 12px;
-  color: #e9edef;
-  opacity: 0.5;
+  color: var(--muted);
+  padding: 6px 12px;
 }
 
-/* LOCK SCREEN */
-#lockscreen {
-    position: absolute;
-    width: 360px;
-    height: 640px;
-
-    background-image: url("lockscreen.jpg");
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-
-    color: white;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    padding: 40px 20px;
-    z-index: 10;
+/* message bubbles */
+.message {
+  max-width: 78%;
+  padding: 9px 11px;
+  margin: 7px 0;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.35;
+  position: relative;
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.22);
+  animation: fadeIn 0.22s ease;
+  white-space: pre-wrap;
 }
 
-#lock-time {
-    font-size: 48px;
-    font-weight: 300;
-    margin-top: 40px;
+.them { background: var(--bubble-them); }
+.you  { background: var(--bubble-you); margin-left: auto; }
+
+/* subtle tails */
+.them::after {
+  content:"";
+  position:absolute;
+  left: -6px;
+  bottom: 10px;
+  width: 12px;
+  height: 12px;
+  background: var(--bubble-them);
+  border-left: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  transform: rotate(45deg);
+  border-bottom-left-radius: 3px;
+}
+.you::after {
+  content:"";
+  position:absolute;
+  right: -6px;
+  bottom: 10px;
+  width: 12px;
+  height: 12px;
+  background: var(--bubble-you);
+  border-right: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  transform: rotate(45deg);
+  border-top-right-radius: 3px;
 }
 
-#lock-date {
-    font-size: 14px;
-    opacity: 0.7;
+/* CHOICES */
+#choices {
+  flex: 0 0 auto;
+  padding: 10px;
+  background: rgba(11,20,26,0.92);
+  border-top: 1px solid rgba(255,255,255,0.07);
+  max-height: 40%;
+  overflow-y: auto;
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
 }
 
-.lock-hint {
-    font-size: 12px;
-    opacity: 0.5;
+.choice {
+  background: rgba(32,44,51,0.72);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--text);
+  padding: 11px 12px;
+  border-radius: 14px;
+  margin-bottom: 10px;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 120ms ease, background 120ms ease, border 120ms ease;
 }
+.choice:hover {
+  background: rgba(42,57,66,0.85);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.choice:active { transform: scale(0.99); }
 
-/* NOTIFICATION */
-#notification {
-    width: 100%;
-    background: #202c33;
-    border-radius: 12px;
-    padding: 12px;
-    cursor: pointer;
-    animation: slideDown 0.6s ease;
-}
-
-.notif-app {
-    font-size: 12px;
-    font-weight: 600;
-    opacity: 0.7;
-}
-
-.notif-text {
-    font-size: 14px;
-    margin-top: 4px;
-}
-
-.notif-hint {
-    font-size: 11px;
-    opacity: 0.5;
-}
-
-.hidden { 
-    display: none !important; 
-}
-
-@keyframes slideDown {
-    from { transform: translateY(-20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-}
-.lock-hint.swipe-anim {
-  animation: swipeHint 1.4s ease-in-out infinite;
-}
-
-@keyframes swipeHint {
-  0%   { transform: translateY(0); opacity: 0.55; }
-  60%  { transform: translateY(-10px); opacity: 0.9; }
-  100% { transform: translateY(0); opacity: 0.55; }
-}
-
-/* "Nope" shake if they tap outside the notification */
-#lockscreen.nope {
-  animation: nopeShake 0.22s ease-in-out;
-}
-
-@keyframes nopeShake {
-  0%   { transform: translateX(0); }
-  25%  { transform: translateX(-6px); }
-  50%  { transform: translateX(6px); }
-  75%  { transform: translateX(-4px); }
-  100% { transform: translateX(0); }
-}
-
-/* Unlock slide-up when notification is tapped */
-#lockscreen.unlocking {
-  animation: unlockSlide 0.26s ease forwards;
-}
-
-@keyframes unlockSlide {
-  to { transform: translateY(-20px); opacity: 0; }
-}
-
+/* TOAST */
 #toast {
   position: absolute;
   top: 58px;
   left: 10px;
   right: 10px;
-  padding: 12px;
-  border-radius: 12px;
-  background: #202c33;
-  color: #e9edef;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  padding: 12px 12px;
+  border-radius: 14px;
+  background: rgba(32,44,51,0.92);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--text);
+  box-shadow: 0 18px 45px rgba(0,0,0,0.45);
   cursor: pointer;
   z-index: 9;
   opacity: 0;
   transform: translateY(-10px);
   transition: opacity 160ms ease, transform 160ms ease;
 }
+#toast.show { opacity: 1; transform: translateY(0); }
 
-#toast.show {
-  opacity: 1;
-  transform: translateY(0);
+/* LOCK SCREEN polish */
+#lockscreen {
+  position: absolute;
+  width: 360px;
+  height: 640px;
+  color: white;
+  z-index: 10;
+
+  background-image:
+    radial-gradient(900px 700px at 20% 10%, rgba(27,220,137,0.12), transparent 60%),
+    radial-gradient(800px 650px at 80% 25%, rgba(0,170,255,0.10), transparent 60%),
+    url("lockscreen.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:space-between;
+  padding: 40px 20px;
+}
+
+#notification {
+  width: 100%;
+  background: rgba(32,44,51,0.78);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  padding: 12px;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  animation: slideDown 0.6s ease;
+}
+
+.notif-app { font-size: 12px; font-weight: 800; opacity: 0.7; }
+.notif-text { font-size: 14px; margin-top: 4px; opacity: 0.95; }
+.notif-hint { font-size: 11px; opacity: 0.55; }
+
+.hidden { display: none !important; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-20px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+/* glitch stays as-is */
+.glitch { animation: glitch 2.5s infinite; }
+@keyframes glitch {
+  0% { transform: translate(0); }
+  92% { transform: translate(0); }
+  93% { transform: translate(-1px, 0); }
+  94% { transform: translate(1px, 0); }
+  95% { transform: translate(0, -1px); }
+  96% { transform: translate(0); }
+}
+
+.appEmoji .appImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 18px;
+  pointer-events: none;
 }
