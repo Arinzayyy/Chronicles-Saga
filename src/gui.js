@@ -14,6 +14,10 @@ export const inbox = document.getElementById("inbox")
 export const chatView = document.getElementById("chatView")
 export const backBtn = document.getElementById("backBtn")
 export const headerTitle = document.getElementById("headerTitle")
+export const settingsView = document.getElementById("settingsView")
+export const galleryView = document.getElementById("galleryView")
+export const btnRestart = document.getElementById("btnRestart")
+
 
 export const toast = document.getElementById("toast")
 
@@ -43,6 +47,9 @@ export function glitchUI(stability) {
 // ===== VIEW SWITCHING =====
 export function showInboxView() {
   if (homeView) homeView.classList.add("hidden")
+  if (settingsView) settingsView.classList.add("hidden")
+  if (galleryView) galleryView.classList.add("hidden")
+
   inbox.classList.remove("hidden")
   chatView.classList.add("hidden")
 
@@ -52,10 +59,38 @@ export function showInboxView() {
 
 export function showChatView(title) {
   if (homeView) homeView.classList.add("hidden")
+  if (settingsView) settingsView.classList.add("hidden")
+  if (galleryView) galleryView.classList.add("hidden")
+
   inbox.classList.add("hidden")
   chatView.classList.remove("hidden")
+
   backBtn.classList.remove("hidden")
   headerTitle.innerText = title
+}
+
+export function showSettingsView() {
+  if (homeView) homeView.classList.add("hidden")
+  if (galleryView) galleryView.classList.add("hidden")
+
+  inbox.classList.add("hidden")
+  chatView.classList.add("hidden")
+  if (settingsView) settingsView.classList.remove("hidden")
+
+  backBtn.classList.remove("hidden")
+  headerTitle.innerText = "Settings"
+}
+
+export function showGalleryView() {
+  if (homeView) homeView.classList.add("hidden")
+  if (settingsView) settingsView.classList.add("hidden")
+
+  inbox.classList.add("hidden")
+  chatView.classList.add("hidden")
+  if (galleryView) galleryView.classList.remove("hidden")
+
+  backBtn.classList.remove("hidden")
+  headerTitle.innerText = "Gallery"
 }
 
 // Optional helper if you ever want to show home from gui side

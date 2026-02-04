@@ -9,8 +9,12 @@ import {
   showInboxView,
   showChatView,
   backBtn,
-  showToast
+  showToast,
+  showSettingsView,
+  showGalleryView,
+  btnRestart
 } from "./gui.js"
+
 
 import { initVars } from "./state.js"
 import { threads, clearUnread } from "./thread.js"
@@ -49,6 +53,17 @@ function openInbox() {
   showInboxView()
   renderInbox()
 }
+
+function openSettings() {
+  currentScreen = "settings"
+  showSettingsView()
+}
+
+function openGallery() {
+  currentScreen = "gallery"
+  showGalleryView()
+}
+
 
 // ===== INCOMING MESSAGE QUEUE =====
 
@@ -196,6 +211,14 @@ async function load() {
   initHome()
   openHome()
 
+  if (btnRestart) {
+  btnRestart.onclick = () => {
+    // simplest reliable "start over"
+    window.location.reload()
+  }
+}
+
+
   // Home screen requests opening inbox (tap Chats icon or swipe)
   window.addEventListener("home:open_inbox", () => {
     openInbox()
@@ -213,6 +236,15 @@ async function load() {
     isUnlocked = true
     openHome()
   })
+
+  window.addEventListener("home:open_settings", () => {
+  openSettings()
+})
+
+window.addEventListener("home:open_gallery", () => {
+  openGallery()
+})
+
 }
 
 // ===== BACK BUTTON =====
@@ -224,6 +256,11 @@ backBtn.onclick = () => {
   }
 
   if (currentScreen === "inbox") {
+    openHome()
+    return
+  }
+
+  if (currentScreen === "settings" || currentScreen === "gallery") {
     openHome()
     return
   }

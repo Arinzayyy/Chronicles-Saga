@@ -3,10 +3,13 @@
 // No story logic lives here
 // Home requests inbox opening by dispatching an event
 
-import { inbox, chatView, backBtn, headerTitle } from "./gui.js"
+import { inbox, chatView, backBtn, headerTitle, settingsView, galleryView } from "./gui.js"
 
 const homeView = document.getElementById("homeView")
 const appChats = document.getElementById("appChats")
+const appSettings = document.getElementById("appSettings")
+const appGallery = document.getElementById("appGallery")
+
 
 let swipeStartY = null
 
@@ -18,6 +21,19 @@ export function initHome() {
       window.dispatchEvent(new CustomEvent("home:open_inbox"))
     }
   }
+
+  if (appSettings) {
+  appSettings.onclick = () => {
+    window.dispatchEvent(new CustomEvent("home:open_settings"))
+  }
+}
+
+if (appGallery) {
+  appGallery.onclick = () => {
+    window.dispatchEvent(new CustomEvent("home:open_gallery"))
+  }
+}
+
 
   homeView.addEventListener("touchstart", onTouchStart)
   homeView.addEventListener("touchend", onTouchEnd)
@@ -32,9 +48,14 @@ export function showHome() {
   homeView.classList.remove("hidden")
   inbox.classList.add("hidden")
   chatView.classList.add("hidden")
+
+  if (settingsView) settingsView.classList.add("hidden")
+  if (galleryView) galleryView.classList.add("hidden")
+
   backBtn.classList.add("hidden")
   headerTitle.innerText = "Home"
 }
+
 
 function onTouchStart(e) {
   const t = e.touches && e.touches[0]

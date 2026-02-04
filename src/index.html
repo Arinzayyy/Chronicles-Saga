@@ -44,18 +44,55 @@
 
       <div id="appGrid">
         <div id="appChats" class="appIcon">
-          <div class="appEmoji">
-            <img class="appImg" src="chat-icon.png" alt="Chats">
-          </div>
-          <div class="appLabel">Chats</div>
-        </div>
+         <div class="appEmoji">
+          <img class="appImg" src="chat-icon.png" alt="Chats">
+         </div>
+        <div class="appLabel">Chats</div>
       </div>
+
+      <div id="appSettings" class="appIcon">
+        <div class="appEmoji"><span class="appGlyph">⚙️</span></div>
+        <div class="appLabel">Settings</div>
+      </div>
+
+      <div id="appGallery" class="appIcon">
+        <div class="appEmoji"><span class="appGlyph">🖼️</span></div>
+        <div class="appLabel">Gallery</div>
+      </div>
+    </div>
+
 
       <div id="homeDock">
         <div class="dockPill"></div>
         
       </div>
     </div>
+
+    <!-- SETTINGS VIEW -->
+<div id="settingsView" class="hidden">
+  <div class="panel">
+    <div class="panelTitle">Settings</div>
+
+    <button id="btnRestart" class="settingsBtn danger">
+      Start game over
+    </button>
+
+    <div class="settingsNote">
+      This will reset everything back to the beginning.
+    </div>
+  </div>
+</div>
+
+<!-- GALLERY VIEW -->
+<div id="galleryView" class="hidden">
+  <div class="panel">
+    <div class="panelTitle">Gallery</div>
+    <div class="settingsNote">
+      Coming soon.
+    </div>
+  </div>
+</div>
+
 
     <!-- INBOX -->
     <div id="inbox" class="hidden"></div>

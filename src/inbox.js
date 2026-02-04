@@ -31,7 +31,13 @@ export function renderInbox() {
       : "";
 
     row.innerHTML = `
-      <div class="inbox-avatar">${initials(t.title)}</div>
+      <div class="inbox-avatar">
+        ${
+          t.avatar
+            ? `<img src="${t.avatar}" class="avatar-img" />`
+            : initials(t.title)
+        }
+      </div>
 
       <div class="inbox-main">
         <div class="inbox-title">${t.title}</div>

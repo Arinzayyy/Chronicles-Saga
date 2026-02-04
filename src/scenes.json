@@ -14,6 +14,7 @@
   "threads": {
     "murna": {
       "title": "Unknown",
+      "avatar": "avatars/unknown.png",
       "start": "murna_01",
       "nodes": {
         "murna_01": {
@@ -155,6 +156,7 @@
 
     "kelvin": {
       "title": "Kelvin",
+      "avatar": "avatars/kelvin.png",
       "start": "kelvin_intro",
       "nodes": {
         "kelvin_intro": {
@@ -206,6 +208,7 @@
 
     "pitch": {
       "title": "Pitch",
+      "avatar": "avatars/pitch.png",
       "start": "pitch_intro",
       "nodes": {
         "pitch_intro": {
@@ -258,4 +261,3 @@
     }
   }
 }
-

@@ -5,7 +5,8 @@ import { showNotification } from "./lockscreen.js";
 
 export function buildThreadsFromJson(data) {
   for (const [id, t] of Object.entries(data.threads)) {
-    ensureThread(id, t.title);
+    const thread = ensureThread(id, t.title);
+    thread.avatar = t.avatar || null;
   }
 }
 
