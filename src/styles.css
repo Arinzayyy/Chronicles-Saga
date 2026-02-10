@@ -85,15 +85,22 @@ body {
 /* HOME */
 #homeView {
   flex: 1;
-  display:flex;
-  flex-direction:column;
-  background:
-    radial-gradient(800px 500px at 25% 0%, rgba(27,220,137,0.10), transparent 60%),
-    rgba(11, 20, 26, 0.92);
-  padding: 18px;
+  display: flex;
+  flex-direction: column;
   position: relative;
   overflow: hidden;
+  padding: 18px;
+
+  background-image:
+    radial-gradient(800px 500px at 25% 0%, rgba(0,0,0,0.25), transparent 60%),
+    radial-gradient(800px 650px at 80% 25%, rgba(0,0,0,0.35), transparent 60%),
+    url("home-bg.jpg"); /* 👈 your image */
+
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
+
 
 #homeClock {
   font-size: 46px;
@@ -136,6 +143,90 @@ body {
   overflow: auto;
 }
 
+/* GALLERY */
+.galleryGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.galleryItem {
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(32,44,51,0.35);
+  border-radius: 14px;
+  padding: 10px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.galleryItem:hover {
+  background: rgba(42,57,66,0.45);
+}
+
+.galleryThumb {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 12px;
+  display: block;
+}
+
+.galleryLabel {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+/* GALLERY MODAL */
+#galleryModal {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#galleryBackdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(8px);
+}
+
+#galleryModalCard {
+  position: relative;
+  width: calc(100% - 28px);
+  max-width: 330px;
+  border-radius: 18px;
+  background: rgba(17,27,33,0.92);
+  border: 1px solid rgba(255,255,255,0.10);
+  padding: 12px;
+  z-index: 1;
+}
+
+#galleryModalTitle {
+  font-weight: 800;
+  margin: 4px 0 10px;
+  text-align: center;
+}
+
+#galleryModalImg {
+  width: 100%;
+  height: 420px;
+  object-fit: cover;
+  border-radius: 14px;
+  display: block;
+}
+
+#galleryClose {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+
 .panel {
   background: rgba(17,27,33,0.78);
   border: 1px solid rgba(255,255,255,0.07);
@@ -157,6 +248,8 @@ body {
   border-radius: 14px;
   cursor: pointer;
   font-weight: 700;
+
+  margin-bottom: 12px; /* 👈 adds space between buttons */
 }
 
 .settingsBtn:hover {
@@ -166,12 +259,15 @@ body {
 
 .settingsBtn.danger {
   border: 1px solid rgba(255, 90, 90, 0.35);
+  background: rgba(90, 20, 20, 0.35);
 }
 
+
 .settingsNote {
-  margin-top: 10px;
+  margin-top: 6px;              /* 👈 closer to the restart button */
   font-size: 12px;
-  color: var(--muted);
+  color: rgba(255, 90, 90, 0.85); /* 👈 warning red */
+  line-height: 1.35;
 }
 
 .appIcon { gap: 7px; }
@@ -297,6 +393,36 @@ body {
   padding: 6px 12px;
 }
 
+/* iMessage-style typing indicator */
+.typing-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: rgba(32,44,51,0.92);
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.typing-bubble span {
+  width: 6px;
+  height: 6px;
+  background: rgba(233,237,239,0.85);
+  border-radius: 50%;
+  animation: typingPulse 1.4s infinite ease-in-out;
+}
+
+.typing-bubble span:nth-child(1) { animation-delay: 0s; }
+.typing-bubble span:nth-child(2) { animation-delay: 0.15s; }
+.typing-bubble span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes typingPulse {
+  0% { opacity: 0.3; }
+  20% { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+
+
 /* message bubbles */
 .message {
   max-width: 78%;
@@ -402,10 +528,14 @@ body {
   color: white;
   z-index: 10;
 
+  border-radius: 26px;   /* 👈 match phone shape */
+  overflow: hidden;      /* 👈 clip background image */
+
   background-image:
     radial-gradient(900px 700px at 20% 10%, rgba(27,220,137,0.12), transparent 60%),
     radial-gradient(800px 650px at 80% 25%, rgba(0,170,255,0.10), transparent 60%),
     url("lockscreen.jpg");
+
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

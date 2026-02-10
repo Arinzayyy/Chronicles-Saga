@@ -1,6 +1,8 @@
 export const vars = {};
 
 export function initVars(initialVars = {}) {
+  // fully reset vars
+  for (const k of Object.keys(vars)) delete vars[k];
   for (const [k, v] of Object.entries(initialVars)) vars[k] = v;
 }
 
@@ -12,7 +14,6 @@ export function applyEffects(effects = {}) {
 }
 
 export function checkCondition(cond) {
-  // cond example: { var:"murnaTrust", op:">=", value:5 }
   const left = Number(vars[cond.var] ?? 0);
   const right = Number(cond.value ?? 0);
 
@@ -25,4 +26,9 @@ export function checkCondition(cond) {
     case "!=": return left !== right;
     default: return false;
   }
+}
+
+// NEW: used by save system
+export function exportVars() {
+  return { ...vars };
 }

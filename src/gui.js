@@ -17,6 +17,7 @@ export const headerTitle = document.getElementById("headerTitle")
 export const settingsView = document.getElementById("settingsView")
 export const galleryView = document.getElementById("galleryView")
 export const btnRestart = document.getElementById("btnRestart")
+export const btnSaveGame = document.getElementById("btnSaveGame")
 
 
 export const toast = document.getElementById("toast")
@@ -32,13 +33,19 @@ export function addMessage(text, who = "them", glitch = false) {
 }
 
 export function typingThen(text, who, glitch = false) {
-  typing.innerText = "typing…"
+  typing.innerHTML = `
+    <div class="typing-bubble">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+  `
+
   setTimeout(() => {
-    typing.innerText = ""
+    typing.innerHTML = ""
     addMessage(text, who, glitch)
   }, 800 + Math.random() * 600)
 }
-
 // ===== VISUAL EFFECTS =====
 export function glitchUI(stability) {
   if (stability < 30) phone.classList.add("glitch")
@@ -135,3 +142,34 @@ if (toast) {
     hideToast()
   }
 }
+
+export function initGallery() {
+  const items = document.querySelectorAll(".galleryItem")
+  const modal = document.getElementById("galleryModal")
+  const backdrop = document.getElementById("galleryBackdrop")
+  const closeBtn = document.getElementById("galleryClose")
+  const img = document.getElementById("galleryModalImg")
+  const title = document.getElementById("galleryModalTitle")
+
+  if (!items.length || !modal || !backdrop || !closeBtn || !img || !title) return
+
+  function close() {
+    modal.classList.add("hidden")
+    img.src = ""
+    title.innerText = ""
+  }
+
+  items.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const src = btn.getAttribute("data-src") || ""
+      const t = btn.getAttribute("data-title") || ""
+      img.src = src
+      title.innerText = t
+      modal.classList.remove("hidden")
+    })
+  })
+
+  backdrop.addEventListener("click", close)
+  closeBtn.addEventListener("click", close)
+}
+

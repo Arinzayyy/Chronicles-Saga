@@ -73,6 +73,10 @@
   <div class="panel">
     <div class="panelTitle">Settings</div>
 
+    <button id="btnSaveGame" class="settingsBtn">
+      Save game
+    </button>
+
     <button id="btnRestart" class="settingsBtn danger">
       Start game over
     </button>
@@ -87,8 +91,28 @@
 <div id="galleryView" class="hidden">
   <div class="panel">
     <div class="panelTitle">Gallery</div>
-    <div class="settingsNote">
-      Coming soon.
+
+    <div class="galleryGrid">
+      <button class="galleryItem" data-src="lockscreen.jpg" data-title="Lockscreen">
+        <img class="galleryThumb" src="lockscreen.jpg" alt="Lockscreen">
+        <div class="galleryLabel">Lockscreen</div>
+      </button>
+
+      <button class="galleryItem" data-src="home-bg.jpg" data-title="Home wallpaper">
+        <img class="galleryThumb" src="home-bg.jpg" alt="Home wallpaper">
+        <div class="galleryLabel">Home wallpaper</div>
+      </button>
+    </div>
+  </div>
+
+  <!-- Fullscreen preview modal -->
+  <div id="galleryModal" class="hidden">
+    <div id="galleryBackdrop"></div>
+
+    <div id="galleryModalCard">
+      <button id="galleryClose" class="icon-btn">×</button>
+      <div id="galleryModalTitle"></div>
+      <img id="galleryModalImg" alt="Preview">
     </div>
   </div>
 </div>

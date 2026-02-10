@@ -2,6 +2,9 @@
 // Central game controller
 // Handles narrative flow, thread state, and screen navigation
 
+import { initVars, exportVars } from "./state.js"
+import { threads, clearUnread, exportThreads, importThreads } from "./thread.js"
+
 import {
   addMessage,
   typingThen,
@@ -12,26 +15,22 @@ import {
   showToast,
   showSettingsView,
   showGalleryView,
-  btnRestart
+  btnRestart,
+  btnSaveGame,
+  initGallery
 } from "./gui.js"
 
-
-import { initVars } from "./state.js"
-import { threads, clearUnread } from "./thread.js"
 import { renderInbox } from "./inbox.js"
 import { buildThreadsFromJson, runTrigger, applyChoiceEffects } from "./engine.js"
 import { showNotification } from "./lockscreen.js"
 import { initHome, showHome } from "./home.js"
-
-console.log("MAIN JS STARTED")
-alert("MAIN JS STARTED")
 
 let data = null
 let activeThreadId = null
 let isUnlocked = false
 
 // Tracks which screen the user is on
-// home | inbox | chat
+// home | inbox | chat | settings | gallery
 let currentScreen = "home"
 
 // Queue for background incoming messages
@@ -64,6 +63,52 @@ function openGallery() {
   showGalleryView()
 }
 
+// ===== SAVE SYSTEM =====
+
+const SAVE_KEY = "chronicles_save_v1"
+
+function saveGame() {
+  if (!data) return
+
+  const payload = {
+    version: 1,
+    savedAt: Date.now(),
+    vars: exportVars(),
+    threads: exportThreads(),
+    activeThreadId,
+    isUnlocked
+  }
+
+  localStorage.setItem(SAVE_KEY, JSON.stringify(payload))
+  showToast("Game saved")
+}
+
+function loadGameIfPresent() {
+  const raw = localStorage.getItem(SAVE_KEY)
+  if (!raw) return false
+
+  let saved = null
+  try {
+    saved = JSON.parse(raw)
+  } catch {
+    return false
+  }
+
+  if (!saved || saved.version !== 1) return false
+
+  initVars(saved.vars || {})
+  importThreads(saved.threads || [])
+
+  activeThreadId = saved.activeThreadId ?? null
+  isUnlocked = !!saved.isUnlocked
+
+  return true
+}
+
+function resetGame() {
+  localStorage.removeItem(SAVE_KEY)
+  window.location.reload()
+}
 
 // ===== INCOMING MESSAGE QUEUE =====
 
@@ -198,31 +243,35 @@ async function load() {
   if (!res.ok) throw new Error("Failed to load scenes.json")
   data = await res.json()
 
+  // Base init from JSON
+  initVars(data.vars || {})
+  buildThreadsFromJson(data)
+
+  // Try restore save
+  const restored = loadGameIfPresent()
+
+  // Render UI
+  renderInbox()
+  initHome()
+  initGallery()
+  openHome()
+
+  // Only show first notification on fresh game
   const firstThreadId = "murna"
   const firstNodeId = data.threads[firstThreadId].start
   const previewText = data.threads[firstThreadId].nodes[firstNodeId].text
   const title = data.threads[firstThreadId].title
 
-  showNotification(previewText, title)
-
-  initVars(data.vars || {})
-  buildThreadsFromJson(data)
-  renderInbox()
-  initHome()
-  openHome()
-
-  if (btnRestart) {
-  btnRestart.onclick = () => {
-    // simplest reliable "start over"
-    window.location.reload()
+  if (!restored) {
+    showNotification(previewText, title)
+  } else {
+    showToast("Save loaded")
   }
-}
 
-
-  // Home screen requests opening inbox (tap Chats icon or swipe)
-  window.addEventListener("home:open_inbox", () => {
-    openInbox()
-  })
+  // Home screen app events
+  window.addEventListener("home:open_inbox", () => openInbox())
+  window.addEventListener("home:open_settings", () => openSettings())
+  window.addEventListener("home:open_gallery", () => openGallery())
 
   // Unlock from notification goes straight to first chat
   window.addEventListener("lockscreen:opened", () => {
@@ -237,14 +286,9 @@ async function load() {
     openHome()
   })
 
-  window.addEventListener("home:open_settings", () => {
-  openSettings()
-})
-
-window.addEventListener("home:open_gallery", () => {
-  openGallery()
-})
-
+  // Settings buttons
+  if (btnSaveGame) btnSaveGame.onclick = () => saveGame()
+  if (btnRestart) btnRestart.onclick = () => resetGame()
 }
 
 // ===== BACK BUTTON =====
@@ -267,5 +311,3 @@ backBtn.onclick = () => {
 }
 
 load()
-
-

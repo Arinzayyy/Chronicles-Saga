@@ -32,3 +32,25 @@ export function clearUnread(threadId) {
   const t = threads.get(threadId);
   t.unread = 0;
 }
+
+export function exportThreads() {
+  return Array.from(threads.values()).map(t => ({
+    id: t.id,
+    title: t.title,
+    avatar: t.avatar ?? null,
+    messages: Array.isArray(t.messages) ? t.messages : [],
+    unread: Number(t.unread ?? 0),
+    currentNode: t.currentNode ?? null
+  }));
+}
+
+export function importThreads(threadArray = []) {
+  for (const saved of threadArray) {
+    const t = ensureThread(saved.id, saved.title);
+    t.title = saved.title;
+    t.avatar = saved.avatar ?? null;
+    t.messages = Array.isArray(saved.messages) ? saved.messages : [];
+    t.unread = Number(saved.unread ?? 0);
+    t.currentNode = saved.currentNode ?? null;
+  }
+}
