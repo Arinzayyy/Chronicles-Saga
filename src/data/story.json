@@ -1,0 +1,814 @@
+{
+  "_schema_version": "2.0.0",
+  "_notes": "chronicles_saga_story.json — canonical story source of truth. All beats, directives, characters, and branching conditions live here. Engine reads this file at runtime. Do not hardcode story content anywhere else.",
+
+  "meta": {
+    "title": "Chronicles Saga",
+    "version": "2.0.0",
+    "authors": ["Arinze Ohaemesi", "Luca-Harding"],
+    "current_chapter": 1,
+    "total_chapters": 3
+  },
+
+  "contexts": ["desk", "phone", "computer"],
+
+  "apps": {
+    "phone": ["sms", "gallery", "settings"],
+    "computer": ["email", "files", "terminal"]
+  },
+
+  "characters": [
+    {
+      "id": "player",
+      "display_name": "Viewer",
+      "aliases": []
+    },
+    {
+      "id": "char_murna",
+      "display_name": "Murna",
+      "aliases": [],
+      "trust_initial": 50,
+      "alignment_initial": 0
+    },
+    {
+      "id": "char_kelvin",
+      "display_name": "Kelvin",
+      "aliases": [],
+      "trust_initial": 60,
+      "alignment_initial": 0,
+      "status_initial": "offline"
+    },
+    {
+      "id": "char_pitch",
+      "display_name": "Pitch",
+      "aliases": [],
+      "trust_initial": 45,
+      "alignment_initial": 0
+    },
+    {
+      "id": "char_ayo",
+      "display_name": "Ayo",
+      "aliases": [],
+      "trust_initial": 50,
+      "alignment_initial": 0
+    },
+    {
+      "id": "char_loray",
+      "display_name": "Loray",
+      "aliases": [],
+      "trust_initial": 50,
+      "alignment_initial": 0
+    },
+    {
+      "id": "char_halima",
+      "display_name": "Halima",
+      "aliases": [],
+      "trust_initial": 0,
+      "alignment_initial": 0,
+      "status_initial": "missing"
+    },
+    {
+      "id": "char_unknown",
+      "display_name": "Unknown",
+      "aliases": [],
+      "trust_initial": 0,
+      "alignment_initial": 0
+    },
+    {
+      "id": "char_admin",
+      "display_name": "---",
+      "aliases": [],
+      "trust_initial": 0,
+      "alignment_initial": 0,
+      "note": "The ghost presence. Messages appear and self-delete. Never directly identified."
+    }
+  ],
+
+  "trust_thresholds": {
+    "hostile":  { "min": 0,  "max": 20 },
+    "cold":     { "min": 21, "max": 40 },
+    "neutral":  { "min": 41, "max": 60 },
+    "warm":     { "min": 61, "max": 80 },
+    "allied":   { "min": 81, "max": 100 }
+  },
+
+  "alignment_axes": ["Integration", "Dominion", "Calibration"],
+
+  "chapters": [
+    {
+      "id": "chapter_01",
+      "title": "Signal",
+      "description": "The player receives their first contact. Something is wrong with the network.",
+      "beats": [
+
+        {
+          "id": "beat_s1_001",
+          "label": "System boot — trust initialized",
+          "context": "phone",
+          "app": "sms",
+          "directives": [
+            { "type": "system_message", "body": "New message received" },
+            { "type": "system_message", "body": "Trust Meter Initialized" },
+            {
+              "type": "init_trust",
+              "entries": [
+                { "character": "char_murna", "label": "Murna", "state": "Neutral" },
+                { "character": "char_kelvin", "label": "Kelvin", "state": "Familiar (offline)" }
+              ]
+            }
+          ],
+          "on_complete": "beat_s1_002"
+        },
+
+        {
+          "id": "beat_s1_002",
+          "label": "Unknown contact opens",
+          "context": "phone",
+          "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_unknown", "thread_id": "thread_murna_main", "body": "hey" },
+            { "type": "pause", "duration_ms": 1200 },
+            { "type": "send_text", "from": "char_unknown", "thread_id": "thread_murna_main", "body": "don't block this" },
+            { "type": "send_text", "from": "char_unknown", "thread_id": "thread_murna_main", "body": "just---" },
+            { "type": "send_text", "from": "char_unknown", "thread_id": "thread_murna_main", "body": "give me a minute" }
+          ],
+          "player_choices": [
+            { "id": "choice_s1_001a", "label": "\"Who is this?\"", "on_select": "beat_s1_003a" },
+            { "id": "choice_s1_001b", "label": "\"How did you get my number?\"", "on_select": "beat_s1_003b" },
+            { "id": "choice_s1_001c", "label": "Leave on read", "on_select": "beat_s1_003c" }
+          ],
+          "on_complete": null
+        },
+
+        {
+          "id": "beat_s1_003a",
+          "label": "Choice: Who is this?",
+          "context": "phone",
+          "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "player", "thread_id": "thread_murna_main", "body": "Who is this?" },
+            { "type": "typing_indicator", "from": "char_unknown", "thread_id": "thread_murna_main", "action": "start" },
+            { "type": "typing_indicator", "from": "char_unknown", "thread_id": "thread_murna_main", "action": "stop" },
+            { "type": "typing_indicator", "from": "char_unknown", "thread_id": "thread_murna_main", "action": "start" },
+            { "type": "send_text", "from": "char_unknown", "thread_id": "thread_murna_main", "body": "name's Murna" },
+            { "type": "send_text", "from": "char_unknown", "thread_id": "thread_murna_main", "body": "Kelvin gave me this" },
+            { "type": "send_text", "from": "char_unknown", "thread_id": "thread_murna_main", "body": "said you'd either help\nor be an ass about" },
+            { "type": "pause", "duration_ms": 800 },
+            { "type": "send_text", "from": "char_unknown", "thread_id": "thread_murna_main", "body": "...no offence" },
+            { "type": "update_trust", "character": "char_murna", "delta": 1 },
+            { "type": "resolve_alias", "thread_id": "thread_murna_main", "from": "char_unknown", "to": "char_murna" }
+          ],
+          "on_complete": "beat_s1_convergence"
+        },
+
+        {
+          "id": "beat_s1_003b",
+          "label": "Choice: How did you get my number?",
+          "context": "phone",
+          "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "player", "thread_id": "thread_murna_main", "body": "How did you get my number?" },
+            { "type": "send_text", "from": "char_unknown", "thread_id": "thread_murna_main", "body": "fair question" },
+            { "type": "send_text", "from": "char_unknown", "thread_id": "thread_murna_main", "body": "Kelvin\nsame way he gets into everything else" },
+            { "type": "pause", "duration_ms": 900 },
+            { "type": "send_text", "from": "char_unknown", "thread_id": "thread_murna_main", "body": "look\nI wouldn't be here if it wasn't important" },
+            { "type": "update_trust", "character": "char_murna", "delta": 0 },
+            { "type": "resolve_alias", "thread_id": "thread_murna_main", "from": "char_unknown", "to": "char_murna" }
+          ],
+          "on_complete": "beat_s1_convergence"
+        },
+
+        {
+          "id": "beat_s1_003c",
+          "label": "Choice: Leave on read",
+          "context": "phone",
+          "app": "sms",
+          "directives": [
+            { "type": "pause", "duration_ms": 2000, "label": "2 minutes pass" },
+            { "type": "send_text", "from": "char_unknown", "thread_id": "thread_murna_main", "body": "yeah" },
+            { "type": "send_text", "from": "char_unknown", "thread_id": "thread_murna_main", "body": "that tracks" },
+            { "type": "pause", "duration_ms": 900 },
+            { "type": "send_text", "from": "char_unknown", "thread_id": "thread_murna_main", "body": "Kelvin said you do this\nwhen things get messy" },
+            { "type": "pause", "duration_ms": 1400 },
+            { "type": "send_text", "from": "char_unknown", "thread_id": "thread_murna_main", "body": "there's a distress signal\nand it has Halima's signature on it" },
+            { "type": "update_trust", "character": "char_murna", "delta": 2 },
+            { "type": "log_pattern", "pattern": "silence", "character": "player" },
+            { "type": "resolve_alias", "thread_id": "thread_murna_main", "from": "char_unknown", "to": "char_murna" }
+          ],
+          "on_complete": "beat_s1_convergence"
+        },
+
+        {
+          "id": "beat_s1_convergence",
+          "label": "Convergence — Murna shares what she knows",
+          "context": "phone",
+          "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_murna_main", "body": "she went dark\nnot cleanly" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_murna_main", "body": "and before you ask\nno\nKelvin doesn't know where she is" },
+            { "type": "pause", "duration_ms": 700 },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_murna_main", "body": "I wouldn't be texting you\nif I had better options" }
+          ],
+          "player_choices": [
+            { "id": "choice_s1_conv_a", "label": "\"Tell me everything you have.\"", "on_select": "beat_s1_conv_a" },
+            { "id": "choice_s1_conv_b", "label": "\"Why me?\"", "on_select": "beat_s1_conv_b" },
+            { "id": "choice_s1_conv_c", "label": "\"I can't promise anything.\"", "on_select": "beat_s1_conv_c" }
+          ],
+          "on_complete": null
+        },
+
+        {
+          "id": "beat_s1_conv_a",
+          "label": "Response: Tell me everything",
+          "context": "phone",
+          "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_murna_main", "body": "last signal\nsix hours ago" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_murna_main", "body": "real signature\nfake confidence" },
+            { "type": "pause", "duration_ms": 800 },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_murna_main", "body": "someone wanted it seen" }
+          ],
+          "on_complete": "beat_s1_kelvin_joins"
+        },
+
+        {
+          "id": "beat_s1_conv_b",
+          "label": "Response: Why me?",
+          "context": "phone",
+          "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_murna_main", "body": "because you're not in the system" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_murna_main", "body": "and because Kelvin trusts you\neven when he pretends he doesn't" }
+          ],
+          "on_complete": "beat_s1_kelvin_joins"
+        },
+
+        {
+          "id": "beat_s1_conv_c",
+          "label": "Response: Can't promise anything",
+          "context": "phone",
+          "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_murna_main", "body": "good" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_murna_main", "body": "promises make people sloppy" }
+          ],
+          "on_complete": "beat_s1_kelvin_joins"
+        },
+
+        {
+          "id": "beat_s1_kelvin_joins",
+          "label": "Kelvin joins — group chat created",
+          "context": "phone",
+          "app": "sms",
+          "directives": [
+            { "type": "system_message", "body": "Incoming participant detected..." },
+            { "type": "system_message", "body": "Kelvin joined the conversation" },
+            { "type": "system_message", "body": "Group Chat Created: TEMP-3" },
+            { "type": "create_group_thread", "thread_id": "thread_temp3", "members": ["player", "char_murna", "char_kelvin"] },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "oh\nthis worked faster than I thought" },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "hey\nbeen a minute" },
+            { "type": "narrator_note", "note": "this should feel normal, almost too normal" }
+          ],
+          "player_choices": [
+            { "id": "choice_s1_kelvin_a", "label": "\"You could've asked before sharing my contact.\"", "on_select": "beat_s1_warehouse" },
+            { "id": "choice_s1_kelvin_b", "label": "\"What's going on, Kelvin?\"", "on_select": "beat_s1_warehouse" },
+            { "id": "choice_s1_kelvin_c", "label": "\"Hi.\"", "on_select": "beat_s1_warehouse" }
+          ],
+          "on_complete": null
+        },
+
+        {
+          "id": "beat_s1_warehouse",
+          "label": "Kelvin drops the warehouse location",
+          "context": "phone",
+          "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "Halima missed two internal pings" },
+            { "type": "pause", "duration_ms": 700 },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "the third one showed up\nwhere it shouldn't exist anymore" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "which already screams \"trap\"\nbefore anyone gets dramatic" },
+            { "type": "update_trust", "character": "char_kelvin", "delta": 1 },
+            { "type": "update_trust", "character": "char_murna", "delta": 1 },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "warehouse\nindustrial zone\neast side" },
+            { "type": "typing_indicator", "from": "char_unknown", "thread_id": "thread_temp3", "action": "start", "label": "unknown source" },
+            { "type": "typing_indicator", "from": "char_unknown", "thread_id": "thread_temp3", "action": "stop" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "...okay\nthat's not funny" }
+          ],
+          "player_choices": [
+            { "id": "choice_s1_ghost_a", "label": "\"Did either of you see that?\"", "on_select": "beat_s1_ghost_message" },
+            { "id": "choice_s1_ghost_b", "label": "\"Ignore it.\"", "on_select": "beat_s1_ghost_message" },
+            { "id": "choice_s1_ghost_c", "label": "Stay silent", "on_select": "beat_s1_ghost_message" }
+          ],
+          "on_complete": null
+        },
+
+        {
+          "id": "beat_s1_ghost_message",
+          "label": "Ghost message appears and self-deletes",
+          "context": "phone",
+          "app": "sms",
+          "directives": [
+            { "type": "system_message", "body": "Unregistered message detected" },
+            { "type": "ghost_message", "thread_id": "thread_temp3", "body": "you're already late", "auto_delete_ms": 800 },
+            { "type": "system_message", "body": "Message deleted" },
+            { "type": "system_message", "body": "No sender data found" },
+            { "type": "pause", "duration_ms": 1500, "label": "a full beat passes" },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "I didn't send that" },
+            { "type": "pause", "duration_ms": 700 },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "and I don't like that\nI can't tell where it came from" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "great\nmystery texter with opinions" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "love the confidence" }
+          ],
+          "on_complete": "beat_s1_pitch_joins"
+        },
+
+        {
+          "id": "beat_s1_pitch_joins",
+          "label": "Pitch joins silently",
+          "context": "phone",
+          "app": "sms",
+          "directives": [
+            { "type": "system_message", "body": "Participant added" },
+            { "type": "system_message", "body": "Pitch joined the conversation" },
+            { "type": "add_to_group_thread", "thread_id": "thread_temp3", "character": "char_pitch" },
+            { "type": "narrator_note", "note": "Pitch does not speak immediately." },
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "you're already moving" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "wow\nlook who woke up" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "you always drop in like this\nor is tonight special" },
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "the warehouse is bait" },
+            { "type": "pause", "duration_ms": 600 },
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "too clean\ntoo visible" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "yeah\nand talking about it\ndoesn't get her back" },
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "it keeps you predictable" }
+          ],
+          "player_choices": [
+            {
+              "id": "choice_s1_pitch_a",
+              "label": "\"Pitch might be right.\"",
+              "trust_effects": [{ "character": "char_pitch", "delta": 2 }, { "character": "char_murna", "delta": -1 }],
+              "on_select": "beat_s1_pitch_a"
+            },
+            {
+              "id": "choice_s1_pitch_b",
+              "label": "\"We don't have better leads.\"",
+              "trust_effects": [{ "character": "char_murna", "delta": 2 }, { "character": "char_pitch", "delta": -1 }],
+              "on_select": "beat_s1_pitch_b"
+            },
+            {
+              "id": "choice_s1_pitch_c",
+              "label": "\"What aren't you saying, Pitch?\"",
+              "trust_effects": [{ "character": "char_pitch", "delta": 1 }],
+              "on_select": "beat_s1_pitch_c"
+            }
+          ],
+          "on_complete": null
+        },
+
+        {
+          "id": "beat_s1_pitch_a",
+          "label": "Sided with Pitch",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "of course\neveryone loves the quiet guy" },
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "thank you\nfor listening" }
+          ],
+          "on_complete": "beat_s1_murna_goes"
+        },
+
+        {
+          "id": "beat_s1_pitch_b",
+          "label": "Sided with Murna",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "finally\nsomeone who understands urgency" },
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "urgency is how traps justify themselves" }
+          ],
+          "on_complete": "beat_s1_murna_goes"
+        },
+
+        {
+          "id": "beat_s1_pitch_c",
+          "label": "Pressed Pitch",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "whoever staged this\nknows how Murna reacts" },
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "how fast he commits\nwhen it feels personal" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "wow\nthanks for the character study" }
+          ],
+          "on_complete": "beat_s1_murna_goes"
+        },
+
+        {
+          "id": "beat_s1_murna_goes",
+          "label": "Murna commits — player call",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "I'm going" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "feel free to keep debating\nI'll send postcards" },
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "then let me pull attention off you" },
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "if something's watching\nI'd rather it watch me think\nthan watch you rush" },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "viewer\nyour call" }
+          ],
+          "player_choices": [
+            {
+              "id": "choice_s1_end_a",
+              "label": "\"Murna, I'll support you directly.\"",
+              "trust_effects": [{ "character": "char_murna", "delta": 2 }, { "character": "char_pitch", "delta": -1 }],
+              "on_select": "beat_s1_end"
+            },
+            {
+              "id": "choice_s1_end_b",
+              "label": "\"Pitch, run interference.\"",
+              "trust_effects": [{ "character": "char_pitch", "delta": 2 }, { "character": "char_murna", "delta": -1 }],
+              "on_select": "beat_s1_end"
+            },
+            {
+              "id": "choice_s1_end_c",
+              "label": "\"Split it. Both of you.\"",
+              "trust_effects": [{ "character": "char_murna", "delta": 1 }, { "character": "char_pitch", "delta": 1 }],
+              "on_select": "beat_s1_end"
+            }
+          ],
+          "on_complete": null
+        },
+
+        {
+          "id": "beat_s1_end",
+          "label": "Scene 1 closes — ghost flash",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "system_message", "body": "Background process detected" },
+            { "type": "system_message", "body": "Process terminated" },
+            { "type": "ghost_message", "thread_id": "thread_temp3", "body": "good choice", "auto_delete_ms": 400, "flash_only": true }
+          ],
+          "on_complete": "chapter_02_bridge"
+        }
+      ]
+    },
+
+    {
+      "id": "chapter_02",
+      "title": "Debrief",
+      "description": "The warehouse gave them nothing. That's what makes it dangerous.",
+      "beats": [
+
+        {
+          "id": "chapter_02_bridge",
+          "label": "Chapter bridge",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "narrator_note", "note": "The warehouse gave them nothing. That's what makes it dangerous. Now the question isn't what happened. It's why it happened at all." },
+            { "type": "system_message", "body": "Group Chat: TEMP-3 active" },
+            {
+              "type": "display_trust_state",
+              "entries": [
+                { "character": "char_murna", "state": "High" },
+                { "character": "char_pitch", "state": "Increased" },
+                { "character": "char_kelvin", "state": "Unstable" }
+              ]
+            },
+            { "type": "pause", "duration_ms": 2000, "label": "Silence. Longer than it should be." }
+          ],
+          "on_complete": "beat_s3_001"
+        },
+
+        {
+          "id": "beat_s3_001",
+          "label": "Murna breaks the silence",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "so..." },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "we \"break into\" a building" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "fight people who already knew we were coming" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "and leave with nothing" },
+            { "type": "pause", "duration_ms": 700 },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "I'm just making sure I didn't miss the part where we win" },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "we weren't meant to" },
+            { "type": "narrator_note", "note": "That lands wrong." },
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "we weren't meant to win", "note": "corrects him slightly" }
+          ],
+          "on_complete": "beat_s3_ayo_joins"
+        },
+
+        {
+          "id": "beat_s3_ayo_joins",
+          "label": "Ayo and Loray join",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "system_message", "body": "Participant added" },
+            { "type": "system_message", "body": "Ayo joined the conversation" },
+            { "type": "add_to_group_thread", "thread_id": "thread_temp3", "character": "char_ayo" },
+            { "type": "send_text", "from": "char_ayo", "thread_id": "thread_temp3", "body": "talk" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "warehouse" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "empty" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "but not empty" },
+            { "type": "send_text", "from": "char_ayo", "thread_id": "thread_temp3", "body": "that's not helpful" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "neither was the warehouse" },
+            { "type": "system_message", "body": "Participant added" },
+            { "type": "system_message", "body": "Loray joined the conversation" },
+            { "type": "add_to_group_thread", "thread_id": "thread_temp3", "character": "char_loray" },
+            { "type": "send_text", "from": "char_loray", "thread_id": "thread_temp3", "body": "Yo, I heard Murna got his ass beat" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "I heard your mother was still in hell" },
+            { "type": "send_photo", "from": "char_murna", "thread_id": "thread_temp3", "photo_id": "photo_murna_finger" },
+            { "type": "send_text", "from": "char_loray", "thread_id": "thread_temp3", "body": "Low blow...." },
+            { "type": "send_text", "from": "char_loray", "thread_id": "thread_temp3", "body": "But I respect low blows" },
+            { "type": "send_text", "from": "char_ayo", "thread_id": "thread_temp3", "body": "🤦‍♂️" },
+            { "type": "send_text", "from": "char_loray", "thread_id": "thread_temp3", "body": "Don't worry, I'm sure it wasn't a total waste, Kelvin probably found nexus residue or something from Halima" },
+            { "type": "send_text", "from": "char_loray", "thread_id": "thread_temp3", "body": "Right, Kelvin?" },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "none" },
+            { "type": "pause", "duration_ms": 700 },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "It was clean\nToo clean." },
+            { "type": "send_text", "from": "char_loray", "thread_id": "thread_temp3", "body": "....then it wasn't a hideout" },
+            { "type": "send_text", "from": "char_loray", "thread_id": "thread_temp3", "body": "it was a stage" },
+            { "type": "pause", "duration_ms": 900, "label": "Silence." }
+          ],
+          "player_choices": [
+            {
+              "id": "choice_s3_stage_a",
+              "label": "\"They wanted to see how we respond.\"",
+              "alignment_effects": [{ "axis": "Integration", "delta": 1 }],
+              "on_select": "beat_s3_stage_a"
+            },
+            {
+              "id": "choice_s3_stage_b",
+              "label": "\"It was intimidation.\"",
+              "alignment_effects": [{ "axis": "Dominion", "delta": 1 }],
+              "on_select": "beat_s3_stage_b"
+            },
+            {
+              "id": "choice_s3_stage_c",
+              "label": "\"It was a distraction.\"",
+              "alignment_effects": [{ "axis": "Integration", "delta": 1 }, { "axis": "Calibration", "delta": 1 }],
+              "on_select": "beat_s3_stage_c"
+            }
+          ],
+          "on_complete": null
+        },
+
+        {
+          "id": "beat_s3_stage_a",
+          "label": "Stage: They watched us",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "yes", "note": "no hesitation" },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "then we gave them a full dataset" }
+          ],
+          "on_complete": "beat_s3_tension"
+        },
+
+        {
+          "id": "beat_s3_stage_b",
+          "label": "Stage: Intimidation",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_ayo", "thread_id": "thread_temp3", "body": "then it worked" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "nah" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "if that was intimidation" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "they'd have left a body" }
+          ],
+          "on_complete": "beat_s3_tension"
+        },
+
+        {
+          "id": "beat_s3_stage_c",
+          "label": "Stage: Distraction",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_loray", "thread_id": "thread_temp3", "body": "from what" },
+            { "type": "pause", "duration_ms": 600, "note": "she doesn't blink" },
+            { "type": "send_text", "from": "char_loray", "thread_id": "thread_temp3", "body": "answer that, and maybe they will be one less step ahead." }
+          ],
+          "on_complete": "beat_s3_tension"
+        },
+
+        {
+          "id": "beat_s3_tension",
+          "label": "Tension — Ayo challenges Murna, Loray asks the viewer",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_ayo", "thread_id": "thread_temp3", "body": "We can't move like that again" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "define \"like that\"" },
+            { "type": "send_text", "from": "char_ayo", "thread_id": "thread_temp3", "body": "uncoordinated\nreactive\nloud" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "....are you just describing me?\nIt's not like I had a lot of options" },
+            { "type": "send_text", "from": "char_ayo", "thread_id": "thread_temp3", "body": "you had restraint" },
+            { "type": "narrator_note", "note": "That lands harder than anything before." },
+            { "type": "update_trust", "character": "char_murna", "delta": -1 },
+            { "type": "update_trust", "character": "char_ayo", "delta": 1 },
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "restraint doesn't fix prediction" },
+            { "type": "pause", "duration_ms": 1000, "label": "Everyone goes quiet again." },
+            { "type": "send_text", "from": "char_loray", "thread_id": "thread_temp3", "body": "viewer", "note": "direct. no softening." },
+            { "type": "send_text", "from": "char_loray", "thread_id": "thread_temp3", "body": "what did you see", "note": "This is different from earlier. Now it matters." }
+          ],
+          "player_choices": [
+            {
+              "id": "choice_s3_saw_a",
+              "label": "\"I saw timing patterns.\"",
+              "alignment_effects": [{ "axis": "Integration", "delta": 2 }],
+              "on_select": "beat_s3_saw_a"
+            },
+            {
+              "id": "choice_s3_saw_b",
+              "label": "\"I saw hesitation.\"",
+              "alignment_effects": [{ "axis": "Dominion", "delta": 1 }],
+              "on_select": "beat_s3_saw_b"
+            },
+            {
+              "id": "choice_s3_saw_c",
+              "label": "\"I saw nothing unusual.\"",
+              "alignment_effects": [{ "axis": "Calibration", "delta": 2 }],
+              "on_select": "beat_s3_saw_c"
+            }
+          ],
+          "on_complete": null
+        },
+
+        {
+          "id": "beat_s3_saw_a",
+          "label": "Saw: Timing patterns",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "of course you did" },
+            { "type": "send_text", "from": "char_loray", "thread_id": "thread_temp3", "body": "repeatable?", "note": "She's testing you now." }
+          ],
+          "on_complete": "beat_s3_ghost_deeper"
+        },
+
+        {
+          "id": "beat_s3_saw_b",
+          "label": "Saw: Hesitation",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_ayo", "thread_id": "thread_temp3", "body": "from who" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "careful how you answer that" }
+          ],
+          "on_complete": "beat_s3_ghost_deeper"
+        },
+
+        {
+          "id": "beat_s3_saw_c",
+          "label": "Saw: Nothing unusual",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "pause", "duration_ms": 1200, "label": "Silence. Longer than before." },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "that's not true", "note": "quiet, almost disappointed" },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "you saw it", "note": "He doesn't explain what 'it' is." }
+          ],
+          "on_complete": "beat_s3_ghost_deeper"
+        },
+
+        {
+          "id": "beat_s3_ghost_deeper",
+          "label": "Admin is learning response delay",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "phone_vibrate" },
+            { "type": "system_message", "body": "Unknown notification" },
+            { "type": "notify_empty", "note": "No sender. No preview." },
+            { "type": "typing_indicator", "from": "char_admin", "thread_id": "thread_temp3", "action": "start", "note": "activates by itself" },
+            { "type": "ghost_message", "thread_id": "thread_temp3", "body": "you respond slower when observed", "auto_delete_ms": 600, "flash_only": true },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "nah" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "nope" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "that wasn't funny" },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "it's deeper now", "note": "low" },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "it's not just watching" },
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "it's learning response delay", "note": "That line matters." },
+            { "type": "send_text", "from": "char_loray", "thread_id": "thread_temp3", "body": "It? you make it sound like it's something other than a hacker" },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "It, they, him, her, doesn't matter, we don't live in a world where we can just assume it's one thing" },
+            { "type": "send_text", "from": "char_loray", "thread_id": "thread_temp3", "body": "Okay okay, My bad I guess" }
+          ],
+          "on_complete": "beat_s3_strategy"
+        },
+
+        {
+          "id": "beat_s3_strategy",
+          "label": "Strategy breakpoint — route lock",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_ayo", "thread_id": "thread_temp3", "body": "we need change structure" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "again?" },
+            { "type": "send_text", "from": "char_ayo", "thread_id": "thread_temp3", "body": "Properly this time" },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "we need layers" },
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "we need unpredictability" },
+            { "type": "send_text", "from": "char_loray", "thread_id": "thread_temp3", "body": "we need clarity" },
+            { "type": "narrator_note", "note": "Everyone is pulling in different directions now." }
+          ],
+          "player_choices": [
+            {
+              "id": "choice_s3_route_a",
+              "label": "\"We stay together. No splits.\"",
+              "alignment_effects": [{ "axis": "Integration", "delta": 2 }],
+              "route_lock": "Integration",
+              "on_select": "beat_s3_route_a"
+            },
+            {
+              "id": "choice_s3_route_b",
+              "label": "\"We move with intent, not hesitation.\"",
+              "alignment_effects": [{ "axis": "Dominion", "delta": 2 }],
+              "route_lock": "Dominion",
+              "on_select": "beat_s3_route_b"
+            },
+            {
+              "id": "choice_s3_route_c",
+              "label": "\"We let it think it understands us.\"",
+              "alignment_effects": [{ "axis": "Calibration", "delta": 2 }],
+              "route_lock": "Calibration",
+              "on_select": "beat_s3_route_c"
+            }
+          ],
+          "on_complete": null
+        },
+
+        {
+          "id": "beat_s3_route_a",
+          "label": "Route: Integration",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_ayo", "thread_id": "thread_temp3", "body": "good" },
+            { "type": "send_text", "from": "char_loray", "thread_id": "thread_temp3", "body": "consistency reduces risk" },
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "...or increases it", "note": "he doesn't argue further" }
+          ],
+          "on_complete": "beat_s3_scene_lock"
+        },
+
+        {
+          "id": "beat_s3_route_b",
+          "label": "Route: Dominion",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "finally" },
+            { "type": "send_text", "from": "char_ayo", "thread_id": "thread_temp3", "body": "intent without coordination is reckless" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "reckless got us out alive" }
+          ],
+          "on_complete": "beat_s3_scene_lock"
+        },
+
+        {
+          "id": "beat_s3_route_c",
+          "label": "Route: Calibration",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "pause", "duration_ms": 1000, "label": "Silence." },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "...say that again" },
+            { "type": "send_photo", "from": "char_murna", "thread_id": "thread_temp3", "photo_id": "photo_murna_meme" },
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "no", "reply_to": "char_kelvin", "note": "low" },
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "I heard it" }
+          ],
+          "on_complete": "beat_s3_scene_lock"
+        },
+
+        {
+          "id": "beat_s3_scene_lock",
+          "label": "Roles assigned — final ghost lingers",
+          "context": "phone", "app": "sms",
+          "directives": [
+            { "type": "send_text", "from": "char_ayo", "thread_id": "thread_temp3", "body": "roles" },
+            { "type": "send_text", "from": "char_ayo", "thread_id": "thread_temp3", "body": "Murna holds" },
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "I move quiet" },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "I audit" },
+            { "type": "pause", "duration_ms": 700 },
+            { "type": "send_text", "from": "char_loray", "thread_id": "thread_temp3", "body": "viewer" },
+            { "type": "narrator_note", "note": "Everyone pauses again." },
+            { "type": "send_text", "from": "char_loray", "thread_id": "thread_temp3", "body": "you work with us", "note": "Not optional." },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "look at that" },
+            { "type": "send_text", "from": "char_murna", "thread_id": "thread_temp3", "body": "promotion without consent" },
+            { "type": "system_message", "body": "Unauthorized overlay detected" },
+            {
+              "type": "ghost_message",
+              "thread_id": "thread_temp3",
+              "body": "Cute",
+              "auto_delete_ms": 600,
+              "flash_only": false,
+              "note": "This time it lingers half a second longer than before."
+            },
+            { "type": "send_text", "from": "char_pitch", "thread_id": "thread_temp3", "body": "...that's....hm" },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "Yeah... hm", "note": "quiet, heavier now" },
+            { "type": "send_text", "from": "char_kelvin", "thread_id": "thread_temp3", "body": "it's getting comfortable" }
+          ],
+          "on_complete": null,
+          "note": "End of Scene 3."
+        }
+
+      ]
+    }
+  ],
+
+  "alias_map": {},
+
+  "ending_conditions": [
+    {
+      "id": "ending_integration",
+      "label": "The Network",
+      "condition": { "alignment": { "axis": "Integration", "min": 6 } }
+    },
+    {
+      "id": "ending_dominion",
+      "label": "The Blade",
+      "condition": { "alignment": { "axis": "Dominion", "min": 6 } }
+    },
+    {
+      "id": "ending_calibration",
+      "label": "The Mirror",
+      "condition": { "alignment": { "axis": "Calibration", "min": 6 } }
+    }
+  ]
+}

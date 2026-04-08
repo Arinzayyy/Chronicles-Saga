@@ -1,0 +1,4 @@
+/* reset only — theming lives in index.css */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
