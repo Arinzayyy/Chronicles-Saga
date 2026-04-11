@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { useGame } from '../context/GameContext';
+import { playClick } from '../utils/sound';
+
+const MONO = '"SF Mono", "Fira Code", "Courier New", monospace';
 
 const SYS = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif';
 
@@ -41,6 +44,14 @@ const DEFAULT_SECTIONS = [
 export default function SettingsApp() {
   const { state, setApp } = useGame();
   const mutated = state.settings ?? {};
+  const [confirmPending, setConfirmPending] = useState(false);
+
+  function handleConfirmReturn() {
+    // window.location.reload() is the only way to reset gamePhase back to
+    // 'mainmenu' without a RESET reducer action in GameContext — it fully
+    // clears all in-memory state (beats, messages, scores, module flags).
+    window.location.reload();
+  }
 
   // Merge mutations from engine
   const sections = DEFAULT_SECTIONS.map(sec => ({
@@ -56,7 +67,7 @@ export default function SettingsApp() {
     <div style={s.root}>
       <StatusBar />
       <div style={s.header}>
-        <button style={s.backBtn} onClick={() => setApp(null)} aria-label="Back">
+        <button style={s.backBtn} onClick={() => { playClick(); setApp(null); }} aria-label="Back">
           <svg width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="#0A84FF"
             strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M7.5 1L1 8l6.5 7"/>
@@ -96,6 +107,20 @@ export default function SettingsApp() {
             </div>
           </div>
         ))}
+
+        {/* System section — destructive actions */}
+        <div style={s.section}>
+          <p style={s.sectionHeader}>SYSTEM</p>
+          <div style={s.sectionCard}>
+            {/* Return to Main Menu row */}
+            <ReturnRow
+              confirmPending={confirmPending}
+              onRequest={() => { playClick(); setConfirmPending(true); }}
+              onConfirm={() => { playClick(); handleConfirmReturn(); }}
+              onCancel={() => { playClick(); setConfirmPending(false); }}
+            />
+          </div>
+        </div>
 
         <p style={s.version}>
           Chronicles Saga OS · v0.1.0
@@ -138,6 +163,50 @@ function SettingRow({ row, isLast }) {
           strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M1 1l5 5-5 5"/>
         </svg>
+      </div>
+    </div>
+  );
+}
+
+// ─── Return to Main Menu row ───────────────────────────────────────────────
+function ReturnRow({ confirmPending, onRequest, onConfirm, onCancel }) {
+  const [hov, setHov] = useState(false);
+
+  if (confirmPending) {
+    return (
+      <div style={s.confirmWrap}>
+        <p style={s.confirmText}>
+          are you sure? unsaved progress will be lost.
+        </p>
+        <div style={s.confirmBtns}>
+          <button style={s.confirmYes} onClick={onConfirm}>confirm</button>
+          <button style={s.confirmNo}  onClick={onCancel}>cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        ...s.row,
+        background: hov ? 'rgba(233,69,96,0.08)' : 'transparent',
+      }}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      onClick={onRequest}
+    >
+      <div style={s.returnIconWrap}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="rgba(233,69,96,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </div>
+      <div style={s.returnLabelWrap}>
+        <span style={s.returnLabel}>Return to Main Menu</span>
+        <span style={s.returnSub}>// exit current session</span>
       </div>
     </div>
   );
@@ -210,8 +279,13 @@ const s = {
   profileSub:  { fontSize:'12px', color:'#8E8E93', margin:'2px 0 0', lineHeight:1.3 },
 
   // Section
-  section: { margin:'16px 16px 0' },
-  sectionCard: { background:'#1C1C1E', borderRadius:'10px', overflow:'hidden' },
+  section:       { margin:'16px 16px 0' },
+  sectionCard:   { background:'#1C1C1E', borderRadius:'10px', overflow:'hidden' },
+  sectionHeader: {
+    fontSize:'12px', fontWeight:'400', letterSpacing:'0.06em',
+    color:'rgba(84,84,88,0.9)', textTransform:'uppercase',
+    margin:'0 0 6px 4px', padding:0, fontFamily:SYS,
+  },
 
   row: {
     display:'flex', alignItems:'center', gap:'12px',
@@ -230,5 +304,48 @@ const s = {
     textAlign:'center', fontSize:'12px',
     color:'rgba(84,84,88,0.7)', padding:'28px 0 0',
     fontFamily:SYS,
+  },
+
+  // Return to Main Menu row
+  returnIconWrap: {
+    width:28, height:28, borderRadius:'7px',
+    background:'rgba(233,69,96,0.15)',
+    display:'flex', alignItems:'center', justifyContent:'center',
+    flexShrink:0,
+  },
+  returnLabelWrap: { flex:1, display:'flex', flexDirection:'column', gap:'2px' },
+  returnLabel:     { fontSize:'16px', color:'rgba(233,69,96,0.95)', lineHeight:1 },
+  returnSub: {
+    fontSize:'10px', color:'rgba(233,69,96,0.45)',
+    fontFamily:MONO, letterSpacing:'0.06em',
+  },
+
+  // Inline confirm prompt
+  confirmWrap: {
+    padding:'14px 16px',
+    background:'rgba(233,69,96,0.06)',
+    borderLeft:'2px solid rgba(233,69,96,0.4)',
+  },
+  confirmText: {
+    margin:'0 0 12px',
+    fontSize:'13px', color:'rgba(255,255,255,0.6)',
+    fontFamily:MONO, letterSpacing:'0.03em', lineHeight:1.5,
+  },
+  confirmBtns: { display:'flex', gap:'10px' },
+  confirmYes: {
+    padding:'6px 16px',
+    fontFamily:MONO, fontSize:'12px', letterSpacing:'0.08em',
+    color:'rgba(233,69,96,0.95)',
+    background:'rgba(233,69,96,0.12)',
+    border:'1px solid rgba(233,69,96,0.4)',
+    borderRadius:'4px', cursor:'pointer',
+  },
+  confirmNo: {
+    padding:'6px 16px',
+    fontFamily:MONO, fontSize:'12px', letterSpacing:'0.08em',
+    color:'rgba(255,255,255,0.45)',
+    background:'transparent',
+    border:'1px solid rgba(84,84,88,0.35)',
+    borderRadius:'4px', cursor:'pointer',
   },
 };

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useGame } from '../context/GameContext';
+import { playClick } from '../utils/sound';
 
 const SYS = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif';
 
@@ -28,7 +29,7 @@ function PhotoDetail({ photo, onClose }) {
     <div style={s.root}>
       <StatusBar />
       <div style={s.detailNav}>
-        <button style={s.detailBackBtn} onClick={onClose}>
+        <button style={s.detailBackBtn} onClick={() => { playClick(); onClose(); }}>
           <svg width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="#0A84FF"
             strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M7.5 1L1 8l6.5 7"/>
@@ -80,7 +81,7 @@ export default function GalleryApp() {
 
       {/* iOS Photos-style header */}
       <div style={s.header}>
-        <button style={s.backBtn} onClick={() => setApp(null)} aria-label="Back">
+        <button style={s.backBtn} onClick={() => { playClick(); setApp(null); }} aria-label="Back">
           <svg width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="#0A84FF"
             strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M7.5 1L1 8l6.5 7"/>
@@ -111,7 +112,7 @@ export default function GalleryApp() {
       ) : (
         <div style={s.grid}>
           {photos.map((photo, i) => (
-            <PhotoTile key={photo.photoId} photo={photo} onClick={() => setExpanded(i)} />
+            <PhotoTile key={photo.photoId} photo={photo} onClick={() => { playClick(); setExpanded(i); }} />
           ))}
         </div>
       )}

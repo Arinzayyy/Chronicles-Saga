@@ -1,8 +1,8 @@
 import { createContext, useContext, useReducer, useCallback } from 'react';
 
 const initialState = {
-  gamePhase: 'mainmenu',       // mainmenu | playing | gameover
-  viewerIdentity: null,        // Sable | Cael | Riven | Yara | null
+  gamePhase: 'mainmenu',       // mainmenu | prologue | playing | gameover
+  viewerIdentity: null,        // Dara | Zael | Seun | Fox | null
   currentBeat: null,
   currentContext: 'desk',      // desk | phone | computer
   currentApp: null,            // sms | email | files | terminal | gallery | settings | null
@@ -56,7 +56,10 @@ function reducer(state, action) {
       return { ...state, gamePhase: 'playing', currentBeat: action.beatId ?? null };
 
     case 'SET_VIEWER_IDENTITY':
-      return { ...state, viewerIdentity: action.identity };
+      return { ...state, viewerIdentity: action.identity, gamePhase: 'prologue' };
+
+    case 'COMPLETE_PROLOGUE':
+      return { ...state, gamePhase: 'playing', currentContext: 'desk' };
 
     case 'SET_BEAT':
       return {
@@ -245,6 +248,10 @@ export function GameProvider({ children }) {
     dispatch({ type: 'SET_VIEWER_IDENTITY', identity });
   }, []);
 
+  const completePrologue = useCallback(() => {
+    dispatch({ type: 'COMPLETE_PROLOGUE' });
+  }, []);
+
   const setBeat = useCallback((beatId) => {
     dispatch({ type: 'SET_BEAT', beatId });
   }, []);
@@ -331,6 +338,7 @@ export function GameProvider({ children }) {
       dispatch,
       startGame,
       setViewerIdentity,
+      completePrologue,
       setBeat,
       setContext,
       setApp,

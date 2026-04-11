@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 import { useEngine } from '../context/EngineContext';
+import { playClick } from '../utils/sound';
 import deskPhoto from '../assets/desk.jpg';
 
 // ─── Hotspot geometry ─────────────────────────────────────────────────────────
@@ -55,6 +56,7 @@ export default function DeskScene() {
   }
 
   function handlePhoneClick() {
+    playClick();
     triggerTransition('phone', () => {
       setContext('phone');
       // If a beat is already in progress, return directly to SMS conversation.
@@ -66,6 +68,7 @@ export default function DeskScene() {
   }
 
   function handleMonitorClick() {
+    playClick();
     triggerTransition('monitor', () => {
       // setContext resets currentApp to null → ComputerHome renders
       setContext('computer');

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useGame } from '../context/GameContext';
 import { useEngine } from '../context/EngineContext';
+import { playClick } from '../utils/sound';
 
 // ─── Main screen ───────────────────────────────────────────────────────────
 export default function EmailApp() {
@@ -14,6 +15,7 @@ export default function EmailApp() {
   const { emails } = state;
 
   function openEmail(email) {
+    playClick();
     markEmailRead(email.id);
     setActiveEmail(email);
     setComposing(null);
@@ -21,6 +23,7 @@ export default function EmailApp() {
   }
 
   function handleChoiceSelect(choice) {
+    playClick();
     setChoiceDone(true);
     engine.resolveChoice(choice);
   }
@@ -47,7 +50,7 @@ export default function EmailApp() {
       <div style={s.root}>
         <ToolBar />
         <div style={s.header}>
-          <button style={s.backBtn} onClick={() => setActiveEmail(null)} aria-label="Back">
+          <button style={s.backBtn} onClick={() => { playClick(); setActiveEmail(null); }} aria-label="Back">
             <Chevron />
           </button>
           <span style={s.headerTitle}>Inbox</span>
@@ -92,7 +95,7 @@ export default function EmailApp() {
     <div style={s.root}>
       <ToolBar />
       <div style={s.header}>
-        <button style={s.backBtn} onClick={() => setApp(null)} aria-label="Back">
+        <button style={s.backBtn} onClick={() => { playClick(); setApp(null); }} aria-label="Back">
           <Chevron />
         </button>
         <span style={s.headerTitle}>Inbox</span>
@@ -124,7 +127,7 @@ function ComposeView({ compose, choiceDone, onSelect, onBack }) {
     <div style={s.root}>
       <ToolBar />
       <div style={s.header}>
-        <button style={s.backBtn} onClick={onBack} aria-label="Back">
+        <button style={s.backBtn} onClick={() => { playClick(); onBack(); }} aria-label="Back">
           <Chevron />
         </button>
         <span style={s.headerTitle}>New Message</span>

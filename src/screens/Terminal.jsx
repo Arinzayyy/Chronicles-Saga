@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useGame } from '../context/GameContext';
 import { useEngine } from '../context/EngineContext';
+import { playClick } from '../utils/sound';
 
 // ─── Minigame generation ───────────────────────────────────────────────────
 const HEX_CHARS = '0123456789ABCDEF';
@@ -98,6 +99,7 @@ export default function Terminal() {
 
   function handleCellClick(cell) {
     if (!game || gameOver) return;
+    playClick();
     if (!cell.isSolution || cell.targetIndex !== nextTarget) {
       // Wrong cell — brief flash
       setWrongFlash(true);
@@ -296,7 +298,7 @@ function IdleTerminal({ onBack }) {
 
       {/* Back button */}
       <div style={t.footer}>
-        <button style={t.backBtn} onClick={onBack}>
+        <button style={t.backBtn} onClick={() => { playClick(); onBack(); }}>
           <svg width="10" height="14" viewBox="0 0 10 14" fill="none" stroke="currentColor"
             strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
             <path d="M8 1L2 7l6 6" />

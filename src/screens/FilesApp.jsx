@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useGame } from '../context/GameContext';
+import { playClick } from '../utils/sound';
 
 // ─── File type icons (text-based) ─────────────────────────────────────────
 const FILE_TYPE_ICONS = {
@@ -23,7 +24,7 @@ function DocumentViewer({ file, onClose }) {
     <div style={s.root}>
       <ToolBar />
       <div style={s.header}>
-        <button style={s.backBtn} onClick={onClose} aria-label="Back">
+        <button style={s.backBtn} onClick={() => { playClick(); onClose(); }} aria-label="Back">
           <Chevron />
         </button>
         <span style={s.headerTitle}>{file.label ?? file.id}</span>
@@ -60,7 +61,7 @@ export default function FilesApp() {
     <div style={s.root}>
       <ToolBar />
       <div style={s.header}>
-        <button style={s.backBtn} onClick={() => setApp(null)} aria-label="Back">
+        <button style={s.backBtn} onClick={() => { playClick(); setApp(null); }} aria-label="Back">
           <Chevron />
         </button>
         <span style={s.headerTitle}>Files</span>
@@ -77,7 +78,7 @@ export default function FilesApp() {
             <FileRow
               key={file.id}
               file={file}
-              onOpen={file.locked ? null : () => setOpenFile(file)}
+              onOpen={file.locked ? null : () => { playClick(); setOpenFile(file); }}
             />
           ))}
         </div>

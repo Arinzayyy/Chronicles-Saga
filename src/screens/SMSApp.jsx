@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useGame } from '../context/GameContext';
 import { useEngine } from '../context/EngineContext';
+import { playClick } from '../utils/sound';
 import storyData from '../data/story.json';
 
 const SYS  = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif';
@@ -18,6 +19,25 @@ function displayName(id) {
   return CHAR_NAMES[id] ?? id.replace('char_', '');
 }
 
+// ─── Sender label colors (group chat only) ────────────────────────────────────
+const SENDER_COLORS = {
+  char_murna:   '#E94560',
+  char_kelvin:  '#378ADD',
+  char_pitch:   '#888888',
+  char_ayo:     '#1D9E75',
+  char_loray:   '#BA7517',
+  char_unknown: 'rgba(255,255,255,0.3)',
+};
+
+function senderColor(id) {
+  return SENDER_COLORS[id] ?? 'rgba(255,255,255,0.3)';
+}
+
+// ─── Thread helpers ───────────────────────────────────────────────────────────
+function isGroupThread(threadMeta) {
+  return (threadMeta?.members?.length ?? 0) > 2;
+}
+
 function threadName(threadId, msgs, meta) {
   if (meta?.isGroup) return 'TEMP-3';
   const other = msgs.find(m => m.sender !== 'player' && !m.isSystem);
@@ -32,6 +52,30 @@ function fmtTime() {
   return `${h}:${m} ${ap}`;
 }
 
+// ─── Message pacing helpers ───────────────────────────────────────────────────
+function rand(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// Returns how long the typing indicator should show before this message.
+function typingDuration(body) {
+  const words = (body ?? '').trim().split(/\s+/).filter(Boolean).length;
+  if (words <= 5)  return rand(800,  1200);
+  if (words <= 15) return rand(1500, 2500);
+  return rand(2500, 3500);
+}
+
+// Returns the pause before showing the typing indicator for the next message.
+function interPause(lastSender, nextSender) {
+  if (lastSender === null) return 0;
+  return lastSender === nextSender ? rand(400, 800) : rand(1000, 2000);
+}
+
+// Messages that skip the queue and appear instantly.
+function isInstant(msg) {
+  return msg.isSystem || msg.isGhost || msg.sender === 'player';
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function SMSApp() {
   const { state, setApp, addMessage, markThreadRead, setFlag } = useGame();
@@ -40,31 +84,76 @@ export default function SMSApp() {
   const [activeThread,   setActiveThread]   = useState(null);
   const [choiceSelected, setChoiceSelected] = useState(false);
 
+  // ── Pacing state ────────────────────────────────────────────────────────────
+  // shownMsgs: what's actually rendered in the conversation right now.
+  // localTyping: { sender } | null — the indicator shown while a msg is being "typed".
+  const [shownMsgs,   setShownMsgs]   = useState([]);
+  const [localTyping, setLocalTyping] = useState(null);
+
+  const queueRef        = useRef([]);        // messages waiting to be displayed
+  const processingRef   = useRef(false);     // true while queue drain is in progress
+  const shownIdsRef     = useRef(new Set()); // ids of messages already registered (shown or queued)
+  const lastSenderRef   = useRef(null);      // sender of last displayed non-system message
+  const pacingTimersRef = useRef([]);        // setTimeout ids for cleanup
+  const processQueueRef = useRef(null);      // mutable ref — always points at latest processQueue
+
   const messagesEndRef = useRef(null);
   const didInit        = useRef(false);
 
-  // Fire opening beat once
+  // ── processQueue — assigned every render so closures are always fresh ───────
+  processQueueRef.current = () => {
+    if (queueRef.current.length === 0) {
+      processingRef.current = false;
+      return;
+    }
+    processingRef.current = true;
+    const msg = queueRef.current.shift();
+
+    const pause  = interPause(lastSenderRef.current, msg.sender);
+    const typing = typingDuration(msg.body ?? '');
+
+    function pt(fn, delay) {
+      const t = setTimeout(fn, delay);
+      pacingTimersRef.current.push(t);
+    }
+
+    pt(() => {
+      // Show typing indicator for this sender
+      setLocalTyping({ sender: msg.sender });
+      pt(() => {
+        // Typing done — brief pause before bubble appears
+        setLocalTyping(null);
+        pt(() => {
+          lastSenderRef.current = msg.sender;
+          setShownMsgs(prev => [...prev, msg]);
+          processQueueRef.current(); // drain next
+        }, 200);
+      }, typing);
+    }, pause);
+  };
+
+  // ── Fire opening beat once ──────────────────────────────────────────────────
   useEffect(() => {
     if (didInit.current) return;
     didInit.current = true;
     if (state.beatHistory.length === 0) engine.loadBeat('beat_s1_001');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reset choice state when beat advances
+  // ── Reset choice state when beat advances ───────────────────────────────────
   useEffect(() => { setChoiceSelected(false); }, [state.currentBeat]);
 
-  // Mark thread read on open; publish active thread so notifications can suppress correctly
+  // ── Mark thread read and publish active thread ───────────────────────────────
   useEffect(() => {
     setFlag('activeThread', activeThread ?? null);
     if (activeThread) markThreadRead(activeThread);
   }, [activeThread]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Clear active thread flag when SMS app unmounts
+  // ── Clear active thread flag on unmount ─────────────────────────────────────
   useEffect(() => {
     return () => setFlag('activeThread', null);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Open a specific thread when tapped from a notification
+  // ── Open thread from notification ───────────────────────────────────────────
   useEffect(() => {
     const target = state.flags?.openThread;
     if (target && state.messageThreads[target]) {
@@ -73,15 +162,62 @@ export default function SMSApp() {
     }
   }, [state.flags?.openThread]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Scroll to bottom on new messages / typing
+  // ── Thread change: cancel pacing, snapshot history as instantly-shown ────────
+  useEffect(() => {
+    pacingTimersRef.current.forEach(clearTimeout);
+    pacingTimersRef.current = [];
+    queueRef.current = [];
+    processingRef.current = false;
+    setLocalTyping(null);
+
+    if (!activeThread) {
+      setShownMsgs([]);
+      shownIdsRef.current = new Set();
+      lastSenderRef.current = null;
+      return;
+    }
+
+    // Messages already in state when we open the thread are "history" — show immediately.
+    const history = state.messageThreads[activeThread] ?? [];
+    setShownMsgs(history);
+    shownIdsRef.current = new Set(history.map(m => m.id));
+    const lastReal = [...history].reverse().find(m => !m.isSystem);
+    lastSenderRef.current = lastReal?.sender ?? null;
+  }, [activeThread]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Watch for new messages arriving from the engine ──────────────────────────
+  // IMPORTANT: must be defined AFTER the thread-change effect so both effects
+  // run in the right order when activeThread changes (thread-change first).
+  useEffect(() => {
+    if (!activeThread) return;
+    const engineMsgs = state.messageThreads[activeThread] ?? [];
+    const newMsgs = engineMsgs.filter(m => !shownIdsRef.current.has(m.id));
+    if (newMsgs.length === 0) return;
+
+    for (const msg of newMsgs) {
+      shownIdsRef.current.add(msg.id); // register immediately so we never double-queue
+      if (isInstant(msg)) {
+        // Ghost, system, and player messages appear without typing delay.
+        if (!msg.isSystem) lastSenderRef.current = msg.sender;
+        setShownMsgs(prev => [...prev, msg]);
+      } else {
+        queueRef.current.push(msg);
+      }
+    }
+
+    if (!processingRef.current) {
+      processQueueRef.current();
+    }
+  }, [state.messageThreads[activeThread]]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Scroll to bottom whenever displayed content changes ──────────────────────
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [state.messageThreads, state.typingIndicators]);
+  }, [shownMsgs, localTyping]);
 
   const currentBeatData = engine.beatMap?.[state.currentBeat];
   const pendingChoices  = currentBeatData?.player_choices ?? [];
 
-  // Determine which thread the current choices belong to (last directive with a thread_id)
   const choiceThread = (() => {
     const dirs = currentBeatData?.directives;
     if (!dirs) return null;
@@ -99,6 +235,7 @@ export default function SMSApp() {
   );
 
   function handleChoiceSelect(choice) {
+    playClick();
     setChoiceSelected(true);
     const body = choice.label.replace(/^["""'']|["""'']$/g, '').trim();
     addMessage(activeThread, {
@@ -116,12 +253,12 @@ export default function SMSApp() {
   const visibleThreads = Object.entries(state.messageThreads)
     .filter(([id, msgs]) => id !== '__system__' && msgs.some(m => !m.isSystem))
     .map(([id, msgs]) => {
-      const meta     = state.threads[id];
-      const visible  = msgs.filter(m => !m.isSystem);
-      const last     = visible.at(-1);
-      const name     = threadName(id, visible, meta);
+      const meta      = state.threads[id];
+      const visible   = msgs.filter(m => !m.isSystem);
+      const last      = visible.at(-1);
+      const name      = threadName(id, visible, meta);
       const hasUnread = visible.some(m => !m.isRead && m.sender !== 'player');
-      const preview  = last
+      const preview   = last
         ? (last.sender === 'player' ? 'You: ' : '') + last.body.split('\n')[0]
         : '...';
       return { id, name, preview, hasUnread };
@@ -133,9 +270,8 @@ export default function SMSApp() {
       <div style={s.root}>
         <StatusBar />
 
-        {/* iOS-style large navigation header */}
         <div style={s.navBar}>
-          <button style={s.navBackBtn} onClick={() => setApp(null)} aria-label="Back">
+          <button style={s.navBackBtn} onClick={() => { playClick(); setApp(null); }} aria-label="Back">
             <svg width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="#0A84FF"
               strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M7.5 1L1 8l6.5 7" />
@@ -149,7 +285,6 @@ export default function SMSApp() {
           </button>
         </div>
 
-        {/* Thread list */}
         <div style={s.threadList}>
           {visibleThreads.length === 0 ? (
             <div style={s.waitingWrap}><WaitingDots /></div>
@@ -159,7 +294,7 @@ export default function SMSApp() {
                 key={t.id}
                 thread={t}
                 isLast={i === visibleThreads.length - 1}
-                onClick={() => setActiveThread(t.id)}
+                onClick={() => { playClick(); setActiveThread(t.id); }}
               />
             ))
           )}
@@ -169,10 +304,14 @@ export default function SMSApp() {
   }
 
   // ── Conversation view ─────────────────────────────────────────────────────
-  const msgs   = state.messageThreads[activeThread] ?? [];
-  const typing = state.typingIndicators[activeThread] ?? [];
-  const meta   = state.threads[activeThread];
-  const cname  = threadName(activeThread, msgs.filter(m => !m.isSystem), meta);
+  const meta    = state.threads[activeThread];
+  const cname   = threadName(activeThread, shownMsgs.filter(m => !m.isSystem), meta);
+  const isGroup = isGroupThread(meta);
+
+  // Typing indicator dot color
+  const typingDotColor = (isGroup && localTyping)
+    ? senderColor(localTyping.sender)
+    : 'rgba(142,142,147,0.9)';
 
   return (
     <div style={s.root}>
@@ -180,7 +319,7 @@ export default function SMSApp() {
 
       {/* Conversation nav bar */}
       <div style={s.convNav}>
-        <button style={s.navBackBtn} onClick={() => setActiveThread(null)} aria-label="Back">
+        <button style={s.navBackBtn} onClick={() => { playClick(); setActiveThread(null); }} aria-label="Back">
           <svg width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="#0A84FF"
             strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M7.5 1L1 8l6.5 7" />
@@ -205,9 +344,9 @@ export default function SMSApp() {
         </div>
       </div>
 
-      {/* Messages */}
-      <div style={s.conversation}>
-        {msgs.map(msg => {
+      {/* Messages — rendered from shownMsgs, not raw engine state */}
+      <div style={{ ...s.conversation, gap: isGroup ? '12px' : '3px' }}>
+        {shownMsgs.map(msg => {
           if (msg.isSystem) {
             return (
               <div key={msg.id} style={s.systemLine}>
@@ -222,6 +361,7 @@ export default function SMSApp() {
               </div>
             );
           }
+          // Ghost messages — char_admin, no sender label, instant display
           if (msg.isGhost) {
             return (
               <div key={msg.id} style={s.rowLeft}>
@@ -232,6 +372,11 @@ export default function SMSApp() {
           if (msg.isPhoto) {
             return (
               <div key={msg.id} style={s.rowLeft}>
+                {isGroup && msg.sender !== 'char_admin' && (
+                  <span style={{ ...s.senderLabel, color: senderColor(msg.sender) }}>
+                    {displayName(msg.sender)}
+                  </span>
+                )}
                 <div style={s.bubblePhoto}>
                   <div style={s.photoPlaceholder}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5">
@@ -248,18 +393,28 @@ export default function SMSApp() {
           }
           return (
             <div key={msg.id} style={s.rowLeft}>
+              {isGroup && msg.sender !== 'char_admin' && (
+                <span style={{ ...s.senderLabel, color: senderColor(msg.sender) }}>
+                  {displayName(msg.sender)}
+                </span>
+              )}
               <div style={s.bubbleRecv}>{msg.body}</div>
             </div>
           );
         })}
 
-        {/* Typing indicator */}
-        {typing.length > 0 && (
+        {/* Local typing indicator — driven by pacing queue, not engine state */}
+        {localTyping && (
           <div style={s.rowLeft}>
+            {isGroup && localTyping.sender !== 'char_admin' && (
+              <span style={{ ...s.senderLabel, color: senderColor(localTyping.sender) }}>
+                {displayName(localTyping.sender)}
+              </span>
+            )}
             <div style={s.typingBubble}>
-              <span className="iDot" style={s.dot} />
-              <span className="iDot" style={{ ...s.dot, animationDelay: '0.16s' }} />
-              <span className="iDot" style={{ ...s.dot, animationDelay: '0.32s' }} />
+              <span className="iDot" style={{ ...s.dot, background: typingDotColor }} />
+              <span className="iDot" style={{ ...s.dot, background: typingDotColor, animationDelay: '0.16s' }} />
+              <span className="iDot" style={{ ...s.dot, background: typingDotColor, animationDelay: '0.32s' }} />
             </div>
           </div>
         )}
@@ -286,7 +441,6 @@ export default function SMSApp() {
           ))}
         </div>
       ) : (
-        /* Input bar placeholder */
         <div style={s.inputBar}>
           <div style={s.inputField}>
             <span style={s.inputPlaceholder}>iMessage</span>
@@ -343,19 +497,19 @@ function ThreadRow({ thread, isLast, onClick }) {
 
 // ─── Avatar ────────────────────────────────────────────────────────────────
 function Avatar({ name, size }) {
-  const hue  = ((name?.charCodeAt(0) ?? 65) * 27) % 360;
-  const bg   = `hsl(${hue}, 55%, 38%)`;
+  const hue    = ((name?.charCodeAt(0) ?? 65) * 27) % 360;
+  const bg     = `hsl(${hue}, 55%, 38%)`;
   const letter = name?.[0]?.toUpperCase() ?? '?';
   return (
     <div style={{
-      width:          size, height: size, borderRadius: '50%',
-      background:     bg,
-      display:        'flex', alignItems: 'center', justifyContent: 'center',
-      flexShrink:     0,
-      fontSize:       size * 0.42,
-      fontWeight:     '600',
-      color:          '#fff',
-      fontFamily:     SYS,
+      width: size, height: size, borderRadius: '50%',
+      background: bg,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      flexShrink: 0,
+      fontSize: size * 0.42,
+      fontWeight: '600',
+      color: '#fff',
+      fontFamily: SYS,
     }}>
       {letter}
     </div>
@@ -374,8 +528,8 @@ function StatusBar() {
       <span style={s.statusTime}>{t}</span>
       <div style={s.statusRight}>
         <svg width="15" height="11" viewBox="0 0 17 12" fill="white">
-          <rect x="0" y="7"  width="3" height="5" rx="0.8"/>
-          <rect x="4" y="4"  width="3" height="8" rx="0.8"/>
+          <rect x="0" y="7"  width="3" height="5"  rx="0.8"/>
+          <rect x="4" y="4"  width="3" height="8"  rx="0.8"/>
           <rect x="8" y="1"  width="3" height="11" rx="0.8"/>
           <rect x="12" y="0" width="3" height="12" rx="0.8" opacity="0.3"/>
         </svg>
@@ -414,7 +568,6 @@ const s = {
     color:         '#fff',
   },
 
-  // Status bar
   statusBar: {
     display:'flex', alignItems:'center', justifyContent:'space-between',
     padding:'14px 20px 2px', color:'#fff', flexShrink:0,
@@ -422,7 +575,6 @@ const s = {
   statusTime:  { fontSize:'15px', fontWeight:'600', letterSpacing:'0.01em' },
   statusRight: { display:'flex', alignItems:'center', gap:'5px' },
 
-  // Thread list nav bar
   navBar: {
     display:'flex', alignItems:'center', justifyContent:'space-between',
     padding:'10px 16px 10px',
@@ -435,16 +587,13 @@ const s = {
     padding:'4px 0', minWidth:60,
   },
   navBackLabel: { fontSize:'17px', color:'#0A84FF', fontFamily:SYS },
-  navTitle: {
-    fontSize:'17px', fontWeight:'600', color:'#fff', letterSpacing:'0.01em',
-  },
+  navTitle: { fontSize:'17px', fontWeight:'600', color:'#fff', letterSpacing:'0.01em' },
   navActionBtn: {
     background:'none', border:'none', cursor:'pointer', padding:'4px',
     display:'flex', alignItems:'center', justifyContent:'flex-end', minWidth:60,
   },
 
-  // Thread list
-  threadList: { flex:1, overflowY:'auto' },
+  threadList:  { flex:1, overflowY:'auto' },
   waitingWrap: { display:'flex', justifyContent:'center', padding:'60px 0' },
   threadRow: {
     width:'100%', display:'flex', alignItems:'center', gap:'12px',
@@ -452,18 +601,17 @@ const s = {
     cursor:'pointer', textAlign:'left', color:'inherit',
     transition:'background 0.1s',
   },
-  threadInfo:  { flex:1, minWidth:0, display:'flex', flexDirection:'column', gap:'2px' },
-  threadMeta:  { display:'flex', alignItems:'center', justifyContent:'space-between' },
-  threadName:  { fontSize:'16px', color:'#fff' },
-  threadTime:  { fontSize:'12px', color:'#8E8E93' },
-  previewRow:  { display:'flex', alignItems:'center', justifyContent:'space-between', gap:4 },
+  threadInfo:    { flex:1, minWidth:0, display:'flex', flexDirection:'column', gap:'2px' },
+  threadMeta:    { display:'flex', alignItems:'center', justifyContent:'space-between' },
+  threadName:    { fontSize:'16px', color:'#fff' },
+  threadTime:    { fontSize:'12px', color:'#8E8E93' },
+  previewRow:    { display:'flex', alignItems:'center', justifyContent:'space-between', gap:4 },
   threadPreview: {
     fontSize:'14px', color:'#8E8E93',
     overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis', flex:1,
   },
   unreadDot: { width:9, height:9, borderRadius:'50%', background:'#0A84FF', flexShrink:0 },
 
-  // Conversation nav
   convNav: {
     display:'flex', alignItems:'center', justifyContent:'space-between',
     padding:'8px 12px 10px',
@@ -471,10 +619,9 @@ const s = {
     flexShrink:0,
   },
   convContactInfo: { display:'flex', flexDirection:'column', alignItems:'center', gap:'3px' },
-  convName: { fontSize:'12px', fontWeight:'600', color:'#fff', letterSpacing:'0.01em' },
+  convName:  { fontSize:'12px', fontWeight:'600', color:'#fff', letterSpacing:'0.01em' },
   convIcons: { display:'flex', gap:'16px', minWidth:60, justifyContent:'flex-end' },
 
-  // Conversation
   conversation: {
     flex:1, overflowY:'auto', padding:'12px 12px 8px',
     display:'flex', flexDirection:'column', gap:'3px',
@@ -484,10 +631,21 @@ const s = {
     fontSize:'11px', color:'#8E8E93',
     padding:'4px 8px', textAlign:'center', letterSpacing:'0.01em',
   },
-  rowLeft:  { display:'flex', justifyContent:'flex-start', paddingLeft:2 },
-  rowRight: { display:'flex', justifyContent:'flex-end',   paddingRight:2 },
+  rowLeft: {
+    display:'flex', flexDirection:'column', alignItems:'flex-start',
+    justifyContent:'flex-start', paddingLeft:2,
+  },
+  rowRight: { display:'flex', justifyContent:'flex-end', paddingRight:2 },
+  senderLabel: {
+    fontFamily:    MONO,
+    fontSize:      '10px',
+    fontWeight:    '500',
+    letterSpacing: '0.04em',
+    marginBottom:  '4px',
+    paddingLeft:   '2px',
+    lineHeight:    1,
+  },
 
-  // iMessage bubbles
   bubbleRecv: {
     maxWidth:'75%', background:'#3A3A3C', color:'#fff',
     padding:'9px 13px', borderRadius:'18px 18px 18px 4px',
@@ -505,7 +663,6 @@ const s = {
     fontStyle:'italic', whiteSpace:'pre-wrap', wordBreak:'break-word',
   },
 
-  // Photo bubble
   bubblePhoto: {
     maxWidth:'75%', background:'#3A3A3C', borderRadius:'18px 18px 18px 4px',
     overflow:'hidden',
@@ -514,10 +671,9 @@ const s = {
     width:'200px', height:'150px', background:'rgba(0,0,0,0.3)',
     display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:6,
   },
-  photoLabel: { fontSize:'10px', color:'rgba(255,255,255,0.35)', fontFamily:MONO, letterSpacing:'0.06em' },
+  photoLabel:   { fontSize:'10px', color:'rgba(255,255,255,0.35)', fontFamily:MONO, letterSpacing:'0.06em' },
   photoCaption: { fontSize:'13px', color:'rgba(255,255,255,0.7)', padding:'8px 12px 10px', margin:0 },
 
-  // Typing indicator
   typingBubble: {
     background:'#3A3A3C', padding:'13px 16px',
     borderRadius:'18px 18px 18px 4px',
@@ -529,13 +685,8 @@ const s = {
     animation:'iDotBounce 1.2s ease-in-out infinite',
   },
 
-  // Choices (replaces keyboard)
-  choicesArea: {
-    background:'#000', flexShrink:0, paddingBottom:'12px',
-  },
-  choicesDivider: {
-    height:'1px', background:'rgba(84,84,88,0.4)', marginBottom:'2px',
-  },
+  choicesArea:    { background:'#000', flexShrink:0, paddingBottom:'12px' },
+  choicesDivider: { height:'1px', background:'rgba(84,84,88,0.4)', marginBottom:'2px' },
   choiceBtn: {
     width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between',
     padding:'13px 20px',
@@ -546,7 +697,6 @@ const s = {
   },
   choiceBtnText: { fontSize:'16px', color:'#0A84FF', fontFamily:SYS, textAlign:'left' },
 
-  // Input bar placeholder (shown when no choices)
   inputBar: {
     display:'flex', alignItems:'center', gap:'8px',
     padding:'8px 12px 14px',

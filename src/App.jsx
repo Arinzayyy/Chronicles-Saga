@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { GameProvider, useGame } from './context/GameContext';
 import { EngineProvider } from './context/EngineContext';
+import { tryPlay, fadeOut } from './audioController';
 import MainMenu        from './screens/MainMenu';
+import Prologue        from './screens/Prologue';
 import CharacterSelect from './screens/CharacterSelect';
 import DeskScene       from './screens/DeskScene';
 import PhoneShell      from './screens/PhoneShell';
@@ -45,6 +47,40 @@ function FadeIn({ children }) {
   );
 }
 
+// ─── Audio lifecycle ──────────────────────────────────────────────────────────
+// Starts BGM on first interaction; fades it out only when leaving the prologue.
+function AudioManager() {
+  const { state } = useGame();
+  const { gamePhase } = state;
+  const fadedRef    = useRef(false);
+  const prevPhaseRef = useRef(null);
+
+  // Attempt autoplay immediately; fall back to first user gesture.
+  useEffect(() => {
+    tryPlay();
+    function onInteract() { tryPlay(); }
+    window.addEventListener('click',   onInteract, { once: true });
+    window.addEventListener('keydown', onInteract, { once: true });
+    return () => {
+      window.removeEventListener('click',   onInteract);
+      window.removeEventListener('keydown', onInteract);
+    };
+  }, []);
+
+  // Fade out only when transitioning out of the prologue into playing (only once).
+  useEffect(() => {
+    const wasInPrologue = prevPhaseRef.current === 'prologue';
+    prevPhaseRef.current = gamePhase;
+
+    if (wasInPrologue && gamePhase === 'playing' && !fadedRef.current) {
+      fadedRef.current = true;
+      fadeOut(800);
+    }
+  }, [gamePhase]);
+
+  return null;
+}
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 function GameRouter() {
   const { state } = useGame();
@@ -52,6 +88,9 @@ function GameRouter() {
 
   // ── Main menu ────────────────────────────────────────────────────────────
   if (gamePhase === 'mainmenu') return <MainMenu />;
+
+  // ── Prologue ─────────────────────────────────────────────────────────────
+  if (gamePhase === 'prologue') return <Prologue />;
 
   if (gamePhase === 'playing') {
 
@@ -100,6 +139,7 @@ export default function App() {
   return (
     <GameProvider>
       <EngineProvider>
+        <AudioManager />
         <GameRouter />
         <NotificationBanner />
       </EngineProvider>
