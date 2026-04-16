@@ -9,6 +9,8 @@
  * A Dynamic Island pill is overlaid at the top-center of the screen.
  */
 
+import NotificationBanner from './NotificationBanner';
+
 export default function PhoneShell({ children }) {
   return (
     <div style={s.outer}>
@@ -32,6 +34,8 @@ export default function PhoneShell({ children }) {
           {/* Screen content — children fill this absolutely */}
           <div style={s.screenContent}>
             {children}
+            {/* Notification banner lives here so it's clipped to the phone screen */}
+            <NotificationBanner />
           </div>
 
           {/* Home indicator (decorative overlay, pointer-events off) */}

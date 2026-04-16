@@ -136,16 +136,18 @@ export default function NotificationBanner() {
 }
 
 const s = {
-  // Invisible full-width anchor pinned to top of viewport
+  // Positioned absolutely inside the phone's screenContent div.
+  // zIndex 25 puts it above the Dynamic Island (20) and all phone content.
+  // Padding-top clears the island (top:14px + height:34px + gap:6px = 54px).
   container: {
-    position:      'fixed',
+    position:      'absolute',
     top:           0,
     left:          0,
     right:         0,
-    zIndex:        9999,
+    zIndex:        25,
     display:       'flex',
     justifyContent:'center',
-    padding:       '10px 14px 0',
+    padding:       '54px 10px 0',
     pointerEvents: 'none',   // pass-through except on banner itself
   },
 
@@ -154,7 +156,7 @@ const s = {
     alignItems:           'flex-start',
     gap:                  '10px',
     width:                '100%',
-    maxWidth:             '380px',
+    maxWidth:             '100%',
     background:           'rgba(28,28,30,0.94)',
     backdropFilter:       'blur(24px)',
     WebkitBackdropFilter: 'blur(24px)',

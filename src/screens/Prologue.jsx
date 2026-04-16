@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useGame } from '../context/GameContext';
 import { playClick } from '../utils/sound';
-import { stopBGM, bgmAudio } from './MainMenu';
+import { fadeOut as fadeOutBGM } from '../audioController';
 
 const MONO = "'Courier New', 'Consolas', 'Liberation Mono', monospace";
 
@@ -89,18 +89,14 @@ export default function Prologue() {
       return;
     }
 
-    // All lines shown — fade music out over 800ms, then transition
+    // All lines shown — fade music out over 800ms, then transition.
+    // Audio is owned by audioController (single source of truth); AudioManager
+    // in App.jsx also triggers its own fadeOut on prologue→playing transition,
+    // but fadeOut is idempotent-safe so calling it here is fine.
     navigatedRef.current = true;
     setFadingOut(true);
 
-    const fadeInterval = setInterval(() => {
-      if (bgmAudio && bgmAudio.volume > 0.05) {
-        bgmAudio.volume -= 0.05;
-      } else {
-        stopBGM();
-        clearInterval(fadeInterval);
-      }
-    }, 40);
+    fadeOutBGM(800);
 
     setTimeout(() => completePrologue(), 800);
   }

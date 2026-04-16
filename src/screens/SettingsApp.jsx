@@ -1,6 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
+import { saveGame } from '../saveState';
 import { playClick } from '../utils/sound';
+import {
+  getVolume, setVolume,
+  getMuted,  setMuted,
+  subscribe as subscribeVolume,
+} from '../utils/volumeStore';
+import ch1 from '../assets/viewer_select/CH1.png';
+import ch2 from '../assets/viewer_select/CH2.png';
+import ch3 from '../assets/viewer_select/CH3.png';
+import ch4 from '../assets/viewer_select/CH4.png';
+
+const CHAR_IMAGES = { Dara: ch1, Zael: ch2, Seun: ch3, Fox: ch4 };
 
 const MONO = '"SF Mono", "Fira Code", "Courier New", monospace';
 
@@ -24,19 +36,8 @@ const DEFAULT_SECTIONS = [
     key:  'system',
     title:'',  // no header for first group after profile
     rows: [
-      { key:'notifications', label:'Notifications',   value:'On',       icon:'🔔', iconBg:'#FF3B30' },
-      { key:'sounds',        label:'Sounds & Haptics', value:'On',      icon:'🔊', iconBg:'#FF3B30' },
-      { key:'focus',         label:'Focus',            value:'Off',      icon:'🌙', iconBg:'#5856D6' },
-      { key:'screen_time',   label:'Screen Time',      value:'',         icon:'📊', iconBg:'#1D6CE5' },
-    ],
-  },
-  {
-    key:  'privacy',
-    title:'',
-    rows: [
-      { key:'privacy',        label:'Privacy & Security', value:'',    icon:'🤝', iconBg:'#1D6CE5' },
-      { key:'location',       label:'Location Services',  value:'Off', icon:'📍', iconBg:'#1D6CE5' },
-      { key:'data_sharing',   label:'Data Sharing',       value:'Disabled', icon:'🔗', iconBg:'#8E8E93' },
+      { key:'notifications', label:'Notifications',   value:'On',  icon:'🔔', iconBg:'#FF3B30' },
+      { key:'sounds',        label:'Sounds & Haptics', value:'On', icon:'🔊', iconBg:'#FF3B30' },
     ],
   },
 ];
@@ -44,7 +45,34 @@ const DEFAULT_SECTIONS = [
 export default function SettingsApp() {
   const { state, setApp } = useGame();
   const mutated = state.settings ?? {};
+  const charImage = CHAR_IMAGES[state.viewerIdentity] ?? null;
   const [confirmPending, setConfirmPending] = useState(false);
+  const [soundsOpen,     setSoundsOpen]     = useState(false);
+
+  // Volume store local mirrors — subscribed below so other UIs updating
+  // volume (e.g. MainMenuSettings) stay in sync with this panel.
+  const [volume, setVolState] = useState(getVolume());
+  const [muted,  setMutedSt]  = useState(getMuted());
+  useEffect(() => subscribeVolume(s => {
+    setVolState(s.volume);
+    setMutedSt(s.muted);
+  }), []);
+
+  const volumePct = Math.round(volume * 100);
+
+  function handleSoundsClick() {
+    playClick();
+    setSoundsOpen(o => !o);
+  }
+
+  function handleVolumeChange(e) {
+    setVolume(Number(e.target.value) / 100);
+  }
+
+  function handleMuteToggle() {
+    playClick();
+    setMuted(!muted);
+  }
 
   function handleConfirmReturn() {
     // window.location.reload() is the only way to reset gamePhase back to
@@ -53,14 +81,24 @@ export default function SettingsApp() {
     window.location.reload();
   }
 
-  // Merge mutations from engine
+  // Merge mutations from engine. The 'sounds' row also reflects live volume
+  // state (from the volume store) so the user gets immediate feedback.
   const sections = DEFAULT_SECTIONS.map(sec => ({
     ...sec,
-    rows: sec.rows.map(row => ({
-      ...row,
-      value:   mutated[row.key] ?? row.value,
-      mutated: row.key in mutated,
-    })),
+    rows: sec.rows.map(row => {
+      if (row.key === 'sounds') {
+        return {
+          ...row,
+          value:   muted ? 'Muted' : `${volumePct}%`,
+          mutated: false,
+        };
+      }
+      return {
+        ...row,
+        value:   mutated[row.key] ?? row.value,
+        mutated: row.key in mutated,
+      };
+    }),
   }));
 
   return (
@@ -81,10 +119,13 @@ export default function SettingsApp() {
         {/* Profile row */}
         <div style={s.profileCard}>
           <div style={s.profileAvatar}>
-            <span style={s.profileAvatarText}>V</span>
+            {charImage
+              ? <img src={charImage} alt={state.viewerIdentity} style={s.profileAvatarImg} />
+              : <span style={s.profileAvatarText}>V</span>
+            }
           </div>
           <div style={s.profileInfo}>
-            <p style={s.profileName}>Viewer</p>
+            <p style={s.profileName}>{state.viewerIdentity ?? 'Viewer'}</p>
             <p style={s.profileSub}>Apple ID, iCloud, Media &amp; Purchases</p>
           </div>
           <svg width="7" height="12" viewBox="0 0 7 12" fill="none" stroke="rgba(84,84,88,0.8)"
@@ -97,21 +138,43 @@ export default function SettingsApp() {
         {sections.slice(1).map((sec, si) => (
           <div key={sec.key} style={s.section}>
             <div style={s.sectionCard}>
-              {sec.rows.map((row, ri) => (
-                <SettingRow
-                  key={row.key}
-                  row={row}
-                  isLast={ri === sec.rows.length - 1}
-                />
-              ))}
+              {sec.rows.map((row, ri) => {
+                const isLast = ri === sec.rows.length - 1;
+                if (row.key === 'sounds') {
+                  // The sounds row is expandable — clicking it reveals a
+                  // volume slider + mute toggle inline, iOS-style.
+                  return (
+                    <SoundsRowGroup
+                      key={row.key}
+                      row={row}
+                      isLast={isLast}
+                      open={soundsOpen}
+                      onToggle={handleSoundsClick}
+                      volumePct={volumePct}
+                      muted={muted}
+                      onVolumeChange={handleVolumeChange}
+                      onMuteToggle={handleMuteToggle}
+                    />
+                  );
+                }
+                return (
+                  <SettingRow
+                    key={row.key}
+                    row={row}
+                    isLast={isLast}
+                  />
+                );
+              })}
             </div>
           </div>
         ))}
 
-        {/* System section — destructive actions */}
+        {/* System section — save + destructive actions */}
         <div style={s.section}>
           <p style={s.sectionHeader}>SYSTEM</p>
           <div style={s.sectionCard}>
+            {/* Save Game row */}
+            <SaveRow onSave={() => saveGame(state)} />
             {/* Return to Main Menu row */}
             <ReturnRow
               confirmPending={confirmPending}
@@ -127,6 +190,141 @@ export default function SettingsApp() {
         </p>
       </div>
     </div>
+  );
+}
+
+// ─── Expandable "Sounds & Haptics" row ────────────────────────────────────────
+// Renders the normal row, then (when open) an inline panel with a volume
+// slider and mute toggle. Both controls write to volumeStore so the change
+// is live across BGM and click sounds.
+function SoundsRowGroup({
+  row, isLast, open, onToggle,
+  volumePct, muted,
+  onVolumeChange, onMuteToggle,
+}) {
+  const [hov, setHov] = useState(false);
+  return (
+    <>
+      <div
+        style={{
+          ...s.row,
+          background:   hov ? 'rgba(255,255,255,0.03)' : 'transparent',
+          borderBottom: (isLast && !open) ? 'none' : '1px solid rgba(84,84,88,0.35)',
+        }}
+        onMouseEnter={() => setHov(true)}
+        onMouseLeave={() => setHov(false)}
+        onClick={onToggle}
+        aria-expanded={open}
+        role="button"
+      >
+        {row.icon && (
+          <div style={{ ...s.rowIcon, background: row.iconBg }}>
+            <span style={{ fontSize:'15px', lineHeight:1 }}>{row.icon}</span>
+          </div>
+        )}
+        <span style={s.rowLabel}>{row.label}</span>
+        <div style={s.rowRight}>
+          <span style={{ ...s.rowValue, color: muted ? '#FF3B30' : '#0A84FF' }}>
+            {row.value}
+          </span>
+          {/* Chevron rotates when open (down). */}
+          <svg
+            width="7" height="12" viewBox="0 0 7 12" fill="none"
+            stroke="rgba(84,84,88,0.8)" strokeWidth="1.8"
+            strokeLinecap="round" strokeLinejoin="round"
+            style={{
+              transform: open ? 'rotate(90deg)' : 'none',
+              transition: 'transform 0.2s',
+            }}
+          >
+            <path d="M1 1l5 5-5 5"/>
+          </svg>
+        </div>
+      </div>
+
+      {open && (
+        <div style={s.soundsPanel}>
+          {/* Volume row */}
+          <div style={s.soundsBlock}>
+            <div style={s.soundsBlockHead}>
+              <span style={s.soundsBlockLabel}>Volume</span>
+              <span style={s.soundsBlockValue}>
+                {muted ? 'Muted' : `${volumePct}%`}
+              </span>
+            </div>
+            <div style={s.soundsSliderRow}>
+              <span style={s.soundsSliderIcon}>🔈</span>
+              <input
+                className="sa-slider"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value={volumePct}
+                onChange={onVolumeChange}
+                disabled={muted}
+                aria-label="Volume"
+                style={{
+                  ...s.soundsSlider,
+                  opacity: muted ? 0.4 : 1,
+                  background: `linear-gradient(to right, #0A84FF 0%, #0A84FF ${volumePct}%, rgba(84,84,88,0.55) ${volumePct}%, rgba(84,84,88,0.55) 100%)`,
+                }}
+              />
+              <span style={s.soundsSliderIconLg}>🔊</span>
+            </div>
+          </div>
+
+          {/* Mute toggle row */}
+          <div
+            style={{ ...s.soundsBlock, cursor: 'pointer' }}
+            onClick={onMuteToggle}
+          >
+            <div style={s.soundsBlockHead}>
+              <span style={s.soundsBlockLabel}>Mute All</span>
+              <span
+                style={{
+                  ...s.soundsSwitch,
+                  background: muted ? '#30D158' : 'rgba(120,120,128,0.32)',
+                }}
+                aria-hidden="true"
+              >
+                <span
+                  style={{
+                    ...s.soundsSwitchKnob,
+                    transform: muted ? 'translateX(20px)' : 'translateX(2px)',
+                  }}
+                />
+              </span>
+            </div>
+            <p style={s.soundsHint}>
+              // silences music and interface clicks
+            </p>
+          </div>
+
+          {/* Slider thumb styling (webkit + firefox) */}
+          <style>{`
+            input[type="range"].sa-slider::-webkit-slider-thumb {
+              -webkit-appearance: none;
+              appearance: none;
+              width: 20px; height: 20px;
+              background: #ffffff;
+              border-radius: 50%;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+              cursor: pointer;
+              border: none;
+            }
+            input[type="range"].sa-slider::-moz-range-thumb {
+              width: 20px; height: 20px;
+              background: #ffffff;
+              border-radius: 50%;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+              cursor: pointer;
+              border: none;
+            }
+          `}</style>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -163,6 +361,59 @@ function SettingRow({ row, isLast }) {
           strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M1 1l5 5-5 5"/>
         </svg>
+      </div>
+    </div>
+  );
+}
+
+// ─── Save Game row ────────────────────────────────────────────────────────────
+function SaveRow({ onSave }) {
+  const [hov,   setHov]   = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  function handleSave() {
+    playClick();
+    onSave();
+    setSaved(true);
+    // Reset the confirmation flash after 2 seconds
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  return (
+    <div
+      style={{
+        ...s.row,
+        borderBottom: '1px solid rgba(84,84,88,0.35)',
+        background: hov ? 'rgba(48,209,88,0.06)' : 'transparent',
+      }}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      onClick={handleSave}
+    >
+      <div style={{ ...s.saveIconWrap, background: saved ? 'rgba(48,209,88,0.3)' : 'rgba(48,209,88,0.15)' }}>
+        {saved ? (
+          // Checkmark when saved
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="rgba(48,209,88,0.95)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        ) : (
+          // Floppy disk / save icon
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="rgba(48,209,88,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/>
+            <polyline points="7 3 7 8 15 8"/>
+          </svg>
+        )}
+      </div>
+      <div style={s.returnLabelWrap}>
+        <span style={{ ...s.saveLabel, color: saved ? 'rgba(48,209,88,1)' : 'rgba(48,209,88,0.95)' }}>
+          {saved ? 'Saved ✓' : 'Save Game'}
+        </span>
+        <span style={s.saveSub}>
+          {saved ? '// progress written to memory' : '// write current progress to memory'}
+        </span>
       </div>
     </div>
   );
@@ -274,6 +525,10 @@ const s = {
     flexShrink:0,
   },
   profileAvatarText: { fontSize:'24px', fontWeight:'600', color:'#fff' },
+  profileAvatarImg: {
+    width:'100%', height:'100%', borderRadius:'50%',
+    objectFit:'cover', objectPosition:'center top', display:'block',
+  },
   profileInfo: { flex:1, minWidth:0 },
   profileName: { fontSize:'20px', fontWeight:'400', color:'#fff', margin:0 },
   profileSub:  { fontSize:'12px', color:'#8E8E93', margin:'2px 0 0', lineHeight:1.3 },
@@ -306,6 +561,18 @@ const s = {
     fontFamily:SYS,
   },
 
+  // Save Game row
+  saveIconWrap: {
+    width:28, height:28, borderRadius:'7px',
+    display:'flex', alignItems:'center', justifyContent:'center',
+    flexShrink:0, transition:'background 0.2s',
+  },
+  saveLabel: { fontSize:'16px', lineHeight:1, transition:'color 0.2s' },
+  saveSub: {
+    fontSize:'10px', color:'rgba(48,209,88,0.45)',
+    fontFamily:MONO, letterSpacing:'0.06em',
+  },
+
   // Return to Main Menu row
   returnIconWrap: {
     width:28, height:28, borderRadius:'7px',
@@ -318,6 +585,79 @@ const s = {
   returnSub: {
     fontSize:'10px', color:'rgba(233,69,96,0.45)',
     fontFamily:MONO, letterSpacing:'0.06em',
+  },
+
+  // Sounds & Haptics expansion panel
+  soundsPanel: {
+    padding: '8px 14px 14px',
+    background: 'rgba(0,0,0,0.25)',
+    borderTop: '1px solid rgba(84,84,88,0.35)',
+  },
+  soundsBlock: {
+    padding: '10px 2px',
+    borderBottom: '1px solid rgba(84,84,88,0.2)',
+  },
+  soundsBlockHead: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: '6px',
+  },
+  soundsBlockLabel: {
+    fontSize: '14px',
+    color: '#fff',
+    fontFamily: SYS,
+  },
+  soundsBlockValue: {
+    fontSize: '13px',
+    color: '#8E8E93',
+    fontFamily: SYS,
+    fontVariantNumeric: 'tabular-nums',
+  },
+  soundsSliderRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '4px 2px',
+  },
+  soundsSliderIcon:   { fontSize: '14px', opacity: 0.6 },
+  soundsSliderIconLg: { fontSize: '16px', opacity: 0.85 },
+  soundsSlider: {
+    WebkitAppearance: 'none',
+    appearance: 'none',
+    flex: 1,
+    height: '4px',
+    borderRadius: '2px',
+    outline: 'none',
+    cursor: 'pointer',
+    transition: 'opacity 0.15s',
+  },
+  soundsHint: {
+    margin: '4px 0 0',
+    fontSize: '11px',
+    color: 'rgba(142,142,147,0.7)',
+    fontFamily: MONO,
+    letterSpacing: '0.03em',
+  },
+  soundsSwitch: {
+    position: 'relative',
+    display: 'inline-block',
+    width: '44px',
+    height: '26px',
+    borderRadius: '13px',
+    transition: 'background 0.2s',
+    flexShrink: 0,
+  },
+  soundsSwitchKnob: {
+    position: 'absolute',
+    top: '2px',
+    left: 0,
+    width: '22px',
+    height: '22px',
+    borderRadius: '50%',
+    background: '#ffffff',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+    transition: 'transform 0.2s',
   },
 
   // Inline confirm prompt

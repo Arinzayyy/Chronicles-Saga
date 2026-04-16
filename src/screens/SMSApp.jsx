@@ -76,6 +76,71 @@ function isInstant(msg) {
   return msg.isSystem || msg.isGhost || msg.sender === 'player';
 }
 
+// ─── Message grouping ─────────────────────────────────────────────────────────
+// Groups consecutive messages from the same sender into visual chains.
+// System and ghost messages are always standalone — they break any chain.
+// chainFirst = true → show sender label (group chats), use full top radius
+// chainLast  = true → show the "tail" corner on the bubble
+function groupMessages(msgs) {
+  return msgs.map((msg, i) => {
+    if (msg.isSystem || msg.isGhost) {
+      return { ...msg, chainFirst: true, chainLast: true };
+    }
+    const prev = msgs.slice(0, i).reverse().find(m => !m.isSystem && !m.isGhost);
+    const next = msgs.slice(i + 1).find(m => !m.isSystem && !m.isGhost);
+    return {
+      ...msg,
+      chainFirst: !prev || prev.sender !== msg.sender,
+      chainLast:  !next || next.sender !== msg.sender,
+    };
+  });
+}
+
+// ─── Thread timestamp formatting ──────────────────────────────────────────────
+function fmtThreadTime(ts) {
+  if (!ts) return '';
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1)  return 'now';
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)  return `${hrs}h`;
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// ─── In-conversation timestamp separator ──────────────────────────────────────
+const TIME_SEP_MS = 5 * 60 * 1000; // show separator after 5-minute gaps
+
+function fmtMsgTime(ts) {
+  const d   = new Date(ts);
+  const now = new Date();
+  const h   = d.getHours(), m = String(d.getMinutes()).padStart(2, '0');
+  const ap  = h >= 12 ? 'PM' : 'AM';
+  const fmt = `${h % 12 || 12}:${m} ${ap}`;
+  const yd  = new Date(now); yd.setDate(yd.getDate() - 1);
+  if (d.toDateString() === now.toDateString()) return `Today ${fmt}`;
+  if (d.toDateString() === yd.toDateString())  return `Yesterday ${fmt}`;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ` ${fmt}`;
+}
+
+// Inserts { __timeSep, id, label } objects into a grouped-message array
+// wherever consecutive real messages are more than TIME_SEP_MS apart.
+function withTimeSeps(groupedMsgs) {
+  const out = [];
+  let lastTs = null;
+  for (const msg of groupedMsgs) {
+    const ts = msg.timestamp;
+    if (ts && !msg.isSystem && !msg.isGhost) {
+      if (lastTs === null || ts - lastTs >= TIME_SEP_MS) {
+        out.push({ __timeSep: true, id: `tsep_${ts}`, label: fmtMsgTime(ts) });
+      }
+      lastTs = ts;
+    }
+    out.push(msg);
+  }
+  return out;
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function SMSApp() {
   const { state, setApp, addMessage, markThreadRead, setFlag } = useGame();
@@ -191,7 +256,9 @@ export default function SMSApp() {
   useEffect(() => {
     if (!activeThread) return;
     const engineMsgs = state.messageThreads[activeThread] ?? [];
-    const newMsgs = engineMsgs.filter(m => !shownIdsRef.current.has(m.id));
+    // Skip player messages — they're added directly by handleChoiceSelect and
+    // are always already in shownMsgs before this effect fires.
+    const newMsgs = engineMsgs.filter(m => !shownIdsRef.current.has(m.id) && m.sender !== 'player');
     if (newMsgs.length === 0) return;
 
     for (const msg of newMsgs) {
@@ -238,14 +305,22 @@ export default function SMSApp() {
     playClick();
     setChoiceSelected(true);
     const body = choice.label.replace(/^["""'']|["""'']$/g, '').trim();
-    addMessage(activeThread, {
+    const playerMsg = {
       id:        `player_choice_${Date.now()}`,
       sender:    'player',
       threadId:  activeThread,
       body,
       timestamp: Date.now(),
       isGhost: false, isSystem: false, isRead: true,
-    });
+    };
+    // Register and show the bubble immediately — before addMessage updates state.
+    // This ensures the new-message useEffect always finds this ID already in
+    // shownIdsRef and skips it, preventing the message from appearing twice.
+    shownIdsRef.current.add(playerMsg.id);
+    lastSenderRef.current = 'player';
+    setShownMsgs(prev => [...prev, playerMsg]);
+    // Persist to game state and advance the story
+    addMessage(activeThread, playerMsg);
     engine.resolveChoice(choice);
   }
 
@@ -257,11 +332,12 @@ export default function SMSApp() {
       const visible   = msgs.filter(m => !m.isSystem);
       const last      = visible.at(-1);
       const name      = threadName(id, visible, meta);
-      const hasUnread = visible.some(m => !m.isRead && m.sender !== 'player');
+      const unreadCount = visible.filter(m => !m.isRead && m.sender !== 'player').length;
       const preview   = last
         ? (last.sender === 'player' ? 'You: ' : '') + last.body.split('\n')[0]
         : '...';
-      return { id, name, preview, hasUnread };
+      const time = fmtThreadTime(last?.timestamp);
+      return { id, name, preview, unreadCount, time };
     });
 
   // ── Thread list ───────────────────────────────────────────────────────────
@@ -328,7 +404,7 @@ export default function SMSApp() {
         </button>
 
         <div style={s.convContactInfo}>
-          <Avatar name={cname} size={28} />
+          <Avatar name={cname} size={26} />
           <span style={s.convName}>{cname}</span>
         </div>
 
@@ -345,39 +421,58 @@ export default function SMSApp() {
       </div>
 
       {/* Messages — rendered from shownMsgs, not raw engine state */}
-      <div style={{ ...s.conversation, gap: isGroup ? '12px' : '3px' }}>
-        {shownMsgs.map(msg => {
+      <div style={{ ...s.conversation, gap: 0 }}>
+        {withTimeSeps(groupMessages(shownMsgs)).map(msg => {
+          // ── Timestamp separator ────────────────────────────────────────────
+          if (msg.__timeSep) {
+            return (
+              <div key={msg.id} style={s.timeSep}>
+                {msg.label}
+              </div>
+            );
+          }
+          // marginTop: tight within a chain, spacious when sender changes
+          const mt = msg.chainFirst ? '10px' : '2px';
+
           if (msg.isSystem) {
             return (
-              <div key={msg.id} style={s.systemLine}>
+              <div key={msg.id} style={{ ...s.systemLine, marginTop: mt }}>
                 {msg.body}
               </div>
             );
           }
+
           if (msg.sender === 'player') {
+            // Tail only on the last bubble in a run of player messages
+            const radius = msg.chainLast ? '18px 18px 4px 18px' : '18px 18px 18px 18px';
             return (
-              <div key={msg.id} style={s.rowRight}>
-                <div style={s.bubbleSent}>{msg.body}</div>
+              <div key={msg.id} style={{ ...s.rowRight, marginTop: mt }}>
+                <div style={{ ...s.bubbleSent, borderRadius: radius }}>{msg.body}</div>
               </div>
             );
           }
-          // Ghost messages — char_admin, no sender label, instant display
+
+          // Ghost messages — standalone, no chain logic
           if (msg.isGhost) {
             return (
-              <div key={msg.id} style={s.rowLeft}>
+              <div key={msg.id} style={{ ...s.rowLeft, marginTop: mt }}>
                 <div style={s.bubbleGhost}>{msg.body}</div>
               </div>
             );
           }
+
+          // Tail only on the last bubble in a run from this sender
+          const radius = msg.chainLast ? '18px 18px 18px 4px' : '18px 18px 18px 18px';
+
           if (msg.isPhoto) {
             return (
-              <div key={msg.id} style={s.rowLeft}>
-                {isGroup && msg.sender !== 'char_admin' && (
+              <div key={msg.id} style={{ ...s.rowLeft, marginTop: mt }}>
+                {isGroup && msg.chainFirst && msg.sender !== 'char_admin' && (
                   <span style={{ ...s.senderLabel, color: senderColor(msg.sender) }}>
                     {displayName(msg.sender)}
                   </span>
                 )}
-                <div style={s.bubblePhoto}>
+                <div style={{ ...s.bubblePhoto, borderRadius: radius }}>
                   <div style={s.photoPlaceholder}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5">
                       <rect x="3" y="3" width="18" height="18" rx="2"/>
@@ -391,33 +486,41 @@ export default function SMSApp() {
               </div>
             );
           }
+
           return (
-            <div key={msg.id} style={s.rowLeft}>
-              {isGroup && msg.sender !== 'char_admin' && (
+            <div key={msg.id} style={{ ...s.rowLeft, marginTop: mt }}>
+              {/* Sender label only on the first bubble of a chain */}
+              {isGroup && msg.chainFirst && msg.sender !== 'char_admin' && (
                 <span style={{ ...s.senderLabel, color: senderColor(msg.sender) }}>
                   {displayName(msg.sender)}
                 </span>
               )}
-              <div style={s.bubbleRecv}>{msg.body}</div>
+              <div style={{ ...s.bubbleRecv, borderRadius: radius }}>{msg.body}</div>
             </div>
           );
         })}
 
         {/* Local typing indicator — driven by pacing queue, not engine state */}
-        {localTyping && (
-          <div style={s.rowLeft}>
-            {isGroup && localTyping.sender !== 'char_admin' && (
-              <span style={{ ...s.senderLabel, color: senderColor(localTyping.sender) }}>
-                {displayName(localTyping.sender)}
-              </span>
-            )}
-            <div style={s.typingBubble}>
-              <span className="iDot" style={{ ...s.dot, background: typingDotColor }} />
-              <span className="iDot" style={{ ...s.dot, background: typingDotColor, animationDelay: '0.16s' }} />
-              <span className="iDot" style={{ ...s.dot, background: typingDotColor, animationDelay: '0.32s' }} />
+        {localTyping && (() => {
+          // Determine if this typing indicator continues a chain from the last message
+          const lastReal = [...shownMsgs].reverse().find(m => !m.isSystem && !m.isGhost);
+          const typingChainFirst = !lastReal || lastReal.sender !== localTyping.sender;
+          const mt = typingChainFirst ? '10px' : '2px';
+          return (
+            <div style={{ ...s.rowLeft, marginTop: mt }} className="typing-fade-in">
+              {isGroup && typingChainFirst && localTyping.sender !== 'char_admin' && (
+                <span style={{ ...s.senderLabel, color: senderColor(localTyping.sender) }}>
+                  {displayName(localTyping.sender)}
+                </span>
+              )}
+              <div style={s.typingBubble}>
+                <span className="iDot" style={{ ...s.dot, background: typingDotColor }} />
+                <span className="iDot" style={{ ...s.dot, background: typingDotColor, animationDelay: '0.16s' }} />
+                <span className="iDot" style={{ ...s.dot, background: typingDotColor, animationDelay: '0.32s' }} />
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         <div ref={messagesEndRef} style={{ height: 1 }} />
       </div>
@@ -427,17 +530,7 @@ export default function SMSApp() {
         <div style={s.choicesArea}>
           <div style={s.choicesDivider} />
           {pendingChoices.map(choice => (
-            <button
-              key={choice.id}
-              style={s.choiceBtn}
-              onClick={() => handleChoiceSelect(choice)}
-            >
-              <span style={s.choiceBtnText}>{choice.label}</span>
-              <svg width="7" height="12" viewBox="0 0 7 12" fill="none" stroke="rgba(10,132,255,0.5)"
-                strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M1 1l5 5-5 5"/>
-              </svg>
-            </button>
+            <ChoiceBtn key={choice.id} choice={choice} onSelect={handleChoiceSelect} />
           ))}
         </div>
       ) : (
@@ -458,6 +551,28 @@ export default function SMSApp() {
   );
 }
 
+// ─── Choice button ────────────────────────────────────────────────────────────
+function ChoiceBtn({ choice, onSelect }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      style={{
+        ...s.choiceBtn,
+        background: hov ? 'rgba(10,132,255,0.08)' : 'none',
+      }}
+      onClick={() => onSelect(choice)}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+    >
+      <span style={s.choiceBtnText}>{choice.label}</span>
+      <svg width="7" height="12" viewBox="0 0 7 12" fill="none" stroke="rgba(10,132,255,0.5)"
+        strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M1 1l5 5-5 5"/>
+      </svg>
+    </button>
+  );
+}
+
 // ─── Thread row ────────────────────────────────────────────────────────────
 function ThreadRow({ thread, isLast, onClick }) {
   const [hov, setHov] = useState(false);
@@ -475,15 +590,25 @@ function ThreadRow({ thread, isLast, onClick }) {
       <Avatar name={thread.name} size={46} />
       <div style={s.threadInfo}>
         <div style={s.threadMeta}>
-          <span style={{ ...s.threadName, fontWeight: thread.hasUnread ? '600' : '400' }}>
+          <span style={{ ...s.threadName, fontWeight: thread.unreadCount > 0 ? '600' : '400' }}>
             {thread.name}
           </span>
-          <span style={s.threadTime}>now</span>
+          <span style={s.threadTime}>{thread.time}</span>
         </div>
         <div style={s.previewRow}>
-          <span style={s.threadPreview}>{thread.preview}</span>
-          {thread.hasUnread && <div style={s.unreadDot} />}
-          {!thread.hasUnread && (
+          <span style={{
+            ...s.threadPreview,
+            color: thread.unreadCount > 0 ? 'rgba(255,255,255,0.75)' : '#8E8E93',
+          }}>
+            {thread.preview}
+          </span>
+          {thread.unreadCount > 0 ? (
+            <div style={s.unreadBadge}>
+              <span style={s.unreadBadgeText}>
+                {thread.unreadCount > 99 ? '99+' : thread.unreadCount}
+              </span>
+            </div>
+          ) : (
             <svg width="7" height="12" viewBox="0 0 7 12" fill="none" stroke="rgba(84,84,88,0.8)"
               strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
               <path d="M1 1l5 5-5 5"/>
@@ -610,7 +735,22 @@ const s = {
     fontSize:'14px', color:'#8E8E93',
     overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis', flex:1,
   },
-  unreadDot: { width:9, height:9, borderRadius:'50%', background:'#0A84FF', flexShrink:0 },
+  unreadBadge: {
+    minWidth:18, height:18, borderRadius:9,
+    background:'#0A84FF',
+    display:'flex', alignItems:'center', justifyContent:'center',
+    padding:'0 5px', flexShrink:0,
+  },
+  unreadBadgeText: { fontSize:11, fontWeight:'700', color:'#fff', lineHeight:1 },
+
+  timeSep: {
+    alignSelf:     'center',
+    fontSize:      '11px',
+    color:         'rgba(142,142,147,0.65)',
+    padding:       '12px 8px 4px',
+    letterSpacing: '0.01em',
+    userSelect:    'none',
+  },
 
   convNav: {
     display:'flex', alignItems:'center', justifyContent:'space-between',
@@ -618,8 +758,8 @@ const s = {
     borderBottom:'1px solid rgba(84,84,88,0.4)',
     flexShrink:0,
   },
-  convContactInfo: { display:'flex', flexDirection:'column', alignItems:'center', gap:'3px' },
-  convName:  { fontSize:'12px', fontWeight:'600', color:'#fff', letterSpacing:'0.01em' },
+  convContactInfo: { display:'flex', flexDirection:'row', alignItems:'center', gap:'8px' },
+  convName:  { fontSize:'15px', fontWeight:'600', color:'#fff', letterSpacing:'0.01em' },
   convIcons: { display:'flex', gap:'16px', minWidth:60, justifyContent:'flex-end' },
 
   conversation: {
@@ -723,5 +863,10 @@ const css = `
   @keyframes iDotBounce {
     0%, 100% { opacity: 0.35; transform: translateY(0); }
     50%       { opacity: 1;    transform: translateY(-3px); }
+  }
+  .typing-fade-in { animation: typingFadeIn 0.18s ease forwards; }
+  @keyframes typingFadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 `;

@@ -1,4 +1,5 @@
-import { createContext, useContext, useReducer, useCallback } from 'react';
+import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import { saveGame, loadGame, clearSave } from '../saveState';
 
 const initialState = {
   gamePhase: 'mainmenu',       // mainmenu | prologue | playing | gameover
@@ -230,6 +231,18 @@ function reducer(state, action) {
     case 'SET_FLAG':
       return { ...state, flags: { ...state.flags, [action.key]: action.value } };
 
+    // ── Save / Load ─────────────────────────────────────────────────────────────
+    // Replaces the entire state with what was read from localStorage.
+    // We keep typingIndicators empty because those are live animation state —
+    // restoring them mid-animation would look broken.
+    case 'LOAD_SAVE':
+      return {
+        ...action.savedState,
+        typingIndicators: {},
+        // Signal EngineContext to resume mid-beat progression after load
+        flags: { ...(action.savedState.flags ?? {}), __pendingResume__: true },
+      };
+
     default:
       return state;
   }
@@ -239,6 +252,38 @@ const GameContext = createContext(null);
 
 export function GameProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+
+  // ── Auto-save ──────────────────────────────────────────────────────────────
+  // Fires on two triggers:
+  //   1. beatHistory grows  → the story advanced to a new beat
+  //   2. messageThreads changes → messages/threads have arrived in state
+  //
+  // We need BOTH because beats are recorded in state before their directive
+  // timeouts fire. If we only saved on beat changes, the save could capture
+  // the new beat ID but miss the messages that arrive 0–650ms later.
+  // Saving on messageThreads too ensures thread_temp3 (and any group chat)
+  // is always fully captured before a potential reload.
+  useEffect(() => {
+    if (state.gamePhase !== 'mainmenu') {
+      saveGame(state);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.beatHistory, state.messageThreads, state.threads]);
+
+  // ── Continue game (load from localStorage) ─────────────────────────────────
+  // Reads the save file and restores the full game state in one dispatch.
+  const continueGame = useCallback(() => {
+    const savedState = loadGame();
+    if (savedState) {
+      dispatch({ type: 'LOAD_SAVE', savedState });
+    }
+  }, []);
+
+  // ── New game helper (also wipes any existing save) ─────────────────────────
+  const newGame = useCallback(() => {
+    clearSave();
+    dispatch({ type: 'START_GAME' });
+  }, []);
 
   const startGame = useCallback((beatId) => {
     dispatch({ type: 'START_GAME', beatId });
@@ -337,6 +382,8 @@ export function GameProvider({ children }) {
       state,
       dispatch,
       startGame,
+      continueGame,
+      newGame,
       setViewerIdentity,
       completePrologue,
       setBeat,

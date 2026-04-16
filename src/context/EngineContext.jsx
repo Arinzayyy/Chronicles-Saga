@@ -15,6 +15,35 @@ export function EngineProvider({ children }) {
     unlockApp, unlockComputerApp, setFlag,
   } = useGame();
 
+  // ── Resume after save-load ──────────────────────────────────────────────────
+  // When LOAD_SAVE is dispatched, flags.__pendingResume__ is set to true.
+  // We detect it here and re-fire the auto-advance for any beat that was
+  // in-progress when the player refreshed (i.e. its on_complete timer was lost).
+  // Beats with player_choices don't need this — the UI re-shows them from
+  // state.currentBeat automatically.
+  useEffect(() => {
+    if (!state.flags?.__pendingResume__) return;
+
+    // Clear the flag immediately so this effect doesn't re-fire
+    setFlag('__pendingResume__', false);
+
+    const currentBeat = state.currentBeat;
+    if (!currentBeat) return;
+
+    const beat = engineRef.current?.beatMap?.[currentBeat];
+    if (!beat) return;
+
+    // If beat has player choices, the UI re-renders them — no advancement needed
+    if (beat.player_choices?.length > 0) return;
+
+    // If the beat was supposed to auto-advance but the on_complete beat never ran,
+    // fire it now to unblock progression
+    if (beat.on_complete && !state.beatHistory.includes(beat.on_complete)) {
+      // Short delay so the restored state fully renders before the engine fires
+      setTimeout(() => engineRef.current?.advanceBeat(beat.on_complete), 150);
+    }
+  }, [state.flags?.__pendingResume__]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Always-fresh state ref so Engine timers/closures see live state
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; }, [state]);

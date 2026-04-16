@@ -188,8 +188,15 @@ function AppIcon({ label, badge, icon, onClick }) {
 
 // ─── App icon (small, dock) ───────────────────────────────────────────────────
 function AppIconSmall({ badge, icon, onClick }) {
+  const [pressed, setPressed] = useState(false);
   return (
-    <button style={s.iconBtnSm} onClick={onClick}>
+    <button
+      style={{ ...s.iconBtnSm, transform: pressed ? 'scale(0.88)' : 'scale(1)', transition: 'transform 0.12s ease' }}
+      onClick={onClick}
+      onMouseDown={() => setPressed(true)}
+      onMouseUp={() => setPressed(false)}
+      onMouseLeave={() => setPressed(false)}
+    >
       {icon}
       {badge && <div style={{ ...s.badge, top: 2, right: 2, width: 14, height: 14 }} />}
     </button>
@@ -393,7 +400,7 @@ const s = {
   wallpaperOverlay: {
     position:   'absolute',
     inset:      0,
-    background: 'rgba(0,0,0,0.5)',
+    background: 'rgba(0,0,0,0.32)',
     zIndex:     0,
     pointerEvents: 'none',
   },

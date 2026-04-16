@@ -1,20 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useGame } from '../context/GameContext';
+import { hasSave } from '../saveState';
 import bgImage from '../assets/main_menu_bg.jpg';
-import bgm     from '../assets/bgm.mp3';
 import { playClick } from '../utils/sound';
+import { getMuted, toggleMuted, subscribe as subscribeVolume } from '../utils/volumeStore';
+import MainMenuSettings from './MainMenuSettings';
 
-// ─── Module-level audio singleton ─────────────────────────────────────────────
-// Declared at module scope so it survives component unmount.
-export let bgmAudio = null;
-
-export const stopBGM = () => {
-  if (bgmAudio) {
-    bgmAudio.pause();
-    bgmAudio.currentTime = 0;
-    bgmAudio = null;
-  }
-};
+// NOTE: BGM is owned by src/audioController.js (single source of truth).
+// Previously this file created a second <Audio> causing duplicate playback —
+// that's been removed as part of the volume fix.
 
 const ACCENT = '#E94560';
 const MONO   = "'Courier New', 'Consolas', 'Liberation Mono', monospace";
@@ -33,11 +27,24 @@ function useTime() {
 }
 
 export default function MainMenu() {
-  const { startGame }   = useGame();
-  const [visible, setVisible] = useState(false);
-  const [blink,   setBlink]   = useState(true);
-  const [muted,   setMutedUI] = useState(false);
+  const { newGame, continueGame } = useGame();
+  const [visible,      setVisible]      = useState(false);
+  const [blink,        setBlink]        = useState(true);
+  const [muted,        setMutedUI]      = useState(getMuted());
+  const [saveExists,   setSaveExists]   = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const time = useTime();
+
+  // Keep mute indicator synced with the volume store (also updated from
+  // the Settings screen, so we need to react to external changes).
+  useEffect(() => subscribeVolume(s => setMutedUI(s.muted)), []);
+
+  // Check for a save file on mount so the Continue button knows whether to
+  // be active. We do this in a useEffect so it only runs client-side
+  // (localStorage isn't available during SSR if this were ever server-rendered).
+  useEffect(() => {
+    setSaveExists(hasSave());
+  }, []);
 
   // Fade-in
   useEffect(() => {
@@ -51,28 +58,37 @@ export default function MainMenu() {
     return () => clearInterval(iv);
   }, []);
 
-  // ── BGM: create once and keep playing across unmounts ──────────────────────
-  useEffect(() => {
-    if (!bgmAudio) {
-      bgmAudio = new Audio(bgm);
-      bgmAudio.loop   = true;
-      bgmAudio.volume = 0.4;
-      bgmAudio.play().catch(() => {});
-    }
-    // Do NOT stop on unmount — let it keep playing through CharacterSelect/Prologue
-  }, []);
-
   function handleNewGame() {
     playClick();
-    startGame();
+    // newGame() clears any existing save then dispatches START_GAME.
+    // This prevents old save data from being overwritten accidentally.
+    newGame();
     // Do NOT stop audio here — Prologue will fade it out
+  }
+
+  function handleContinue() {
+    if (!saveExists) return;
+    playClick();
+    // Reads localStorage and restores the full game state in one shot.
+    continueGame();
   }
 
   function toggleMute() {
     playClick();
-    if (!bgmAudio) return;
-    bgmAudio.muted = !bgmAudio.muted;
-    setMutedUI(bgmAudio.muted);
+    // Volume store is the single source; subscribers (BGM element, etc.)
+    // receive the change automatically.
+    toggleMuted();
+  }
+
+  function openSettings() {
+    playClick();
+    setShowSettings(true);
+  }
+
+  // When the settings overlay is open, render it instead of the menu.
+  // Using conditional render (vs overlay z-index) keeps focus/keyboard sane.
+  if (showSettings) {
+    return <MainMenuSettings onClose={() => setShowSettings(false)} />;
   }
 
   return (
@@ -145,21 +161,31 @@ export default function MainMenu() {
               </span>
             </button>
 
-            <div style={s.menuRowDim}>
-              <span style={s.menuArrowDim}>▷</span>
-              <span style={s.menuInner}>
-                <span style={s.menuLabelDim}>CONTINUE</span>
-                <span style={s.menuSubDim}>// no save data</span>
-              </span>
-            </div>
+            {saveExists ? (
+              <button style={s.menuRowActive} onClick={handleContinue}>
+                <span style={s.menuArrow}>▶</span>
+                <span style={s.menuInner}>
+                  <span style={s.menuLabel}>CONTINUE</span>
+                  <span style={s.menuSub}>// resume last session</span>
+                </span>
+              </button>
+            ) : (
+              <div style={s.menuRowDim}>
+                <span style={s.menuArrowDim}>▷</span>
+                <span style={s.menuInner}>
+                  <span style={s.menuLabelDim}>CONTINUE</span>
+                  <span style={s.menuSubDim}>// no save data</span>
+                </span>
+              </div>
+            )}
 
-            <div style={s.menuRowDim}>
-              <span style={s.menuArrowDim}>▷</span>
+            <button style={s.menuRowActive} onClick={openSettings}>
+              <span style={s.menuArrow}>▶</span>
               <span style={s.menuInner}>
-                <span style={s.menuLabelDim}>SETTINGS</span>
-                <span style={s.menuSubDim}>// coming later</span>
+                <span style={s.menuLabel}>SETTINGS</span>
+                <span style={s.menuSub}>// audio, haptics &amp; system</span>
               </span>
-            </div>
+            </button>
           </nav>
 
           <div style={s.bottomRight}>

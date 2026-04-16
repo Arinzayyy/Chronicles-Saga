@@ -15,7 +15,6 @@ import ComputerHome    from './screens/ComputerHome';
 import EmailApp        from './screens/EmailApp';
 import FilesApp        from './screens/FilesApp';
 import Terminal            from './screens/Terminal';
-import NotificationBanner  from './screens/NotificationBanner';
 import './App.css';
 
 // ─── Fade-in wrapper ──────────────────────────────────────────────────────────
@@ -141,7 +140,6 @@ export default function App() {
       <EngineProvider>
         <AudioManager />
         <GameRouter />
-        <NotificationBanner />
       </EngineProvider>
     </GameProvider>
   );
