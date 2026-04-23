@@ -1,5 +1,12 @@
 import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
-import { saveGame, loadGame, clearSave } from '../saveState';
+import {
+  saveGame,
+  loadGame,
+  clearSave,
+  saveToSlot,
+  loadFromSlot,
+  clearSlot,
+} from '../saveState';
 
 const initialState = {
   gamePhase: 'mainmenu',       // mainmenu | prologue | playing | gameover
@@ -279,10 +286,32 @@ export function GameProvider({ children }) {
     }
   }, []);
 
-  // ── New game helper (also wipes any existing save) ─────────────────────────
+  // ── New game helper (wipes autosave; manual slots are preserved) ───────────
   const newGame = useCallback(() => {
     clearSave();
     dispatch({ type: 'START_GAME' });
+  }, []);
+
+  // ── Multi-slot save/load ───────────────────────────────────────────────────
+  // Load any slot (autosave or a manual slot) into the running game.
+  const loadSlot = useCallback((slotId) => {
+    const saved = loadFromSlot(slotId);
+    if (saved) {
+      dispatch({ type: 'LOAD_SAVE', savedState: saved });
+      return true;
+    }
+    return false;
+  }, []);
+
+  // Manually save the current state to a given slot (overwrites if occupied).
+  // Returns true on success, false if called from the main menu or on failure.
+  const saveSlot = useCallback((slotId) => {
+    return saveToSlot(slotId, state);
+  }, [state]);
+
+  // Delete a slot's contents (used by "Delete" buttons in the slot-select UI).
+  const deleteSlot = useCallback((slotId) => {
+    clearSlot(slotId);
   }, []);
 
   const startGame = useCallback((beatId) => {
@@ -384,6 +413,9 @@ export function GameProvider({ children }) {
       startGame,
       continueGame,
       newGame,
+      loadSlot,
+      saveSlot,
+      deleteSlot,
       setViewerIdentity,
       completePrologue,
       setBeat,

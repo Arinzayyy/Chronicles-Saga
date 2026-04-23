@@ -5,6 +5,7 @@ import bgImage from '../assets/main_menu_bg.jpg';
 import { playClick } from '../utils/sound';
 import { getMuted, toggleMuted, subscribe as subscribeVolume } from '../utils/volumeStore';
 import MainMenuSettings from './MainMenuSettings';
+import SaveSlotSelect from './SaveSlotSelect';
 
 // NOTE: BGM is owned by src/audioController.js (single source of truth).
 // Previously this file created a second <Audio> causing duplicate playback —
@@ -27,12 +28,13 @@ function useTime() {
 }
 
 export default function MainMenu() {
-  const { newGame, continueGame } = useGame();
+  const { newGame } = useGame();
   const [visible,      setVisible]      = useState(false);
   const [blink,        setBlink]        = useState(true);
   const [muted,        setMutedUI]      = useState(getMuted());
   const [saveExists,   setSaveExists]   = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showLoad,     setShowLoad]     = useState(false);
   const time = useTime();
 
   // Keep mute indicator synced with the volume store (also updated from
@@ -66,11 +68,10 @@ export default function MainMenu() {
     // Do NOT stop audio here — Prologue will fade it out
   }
 
-  function handleContinue() {
+  function handleLoad() {
     if (!saveExists) return;
     playClick();
-    // Reads localStorage and restores the full game state in one shot.
-    continueGame();
+    setShowLoad(true);
   }
 
   function toggleMute() {
@@ -89,6 +90,18 @@ export default function MainMenu() {
   // Using conditional render (vs overlay z-index) keeps focus/keyboard sane.
   if (showSettings) {
     return <MainMenuSettings onClose={() => setShowSettings(false)} />;
+  }
+
+  // Same pattern for the save-slot select screen. When a slot is loaded,
+  // the game router takes over (gamePhase flips to "playing") and this
+  // component unmounts on its own.
+  if (showLoad) {
+    return (
+      <SaveSlotSelect
+        mode="load"
+        onClose={() => setShowLoad(false)}
+      />
+    );
   }
 
   return (
@@ -162,18 +175,18 @@ export default function MainMenu() {
             </button>
 
             {saveExists ? (
-              <button style={s.menuRowActive} onClick={handleContinue}>
+              <button style={s.menuRowActive} onClick={handleLoad}>
                 <span style={s.menuArrow}>▶</span>
                 <span style={s.menuInner}>
-                  <span style={s.menuLabel}>CONTINUE</span>
-                  <span style={s.menuSub}>// resume last session</span>
+                  <span style={s.menuLabel}>LOAD</span>
+                  <span style={s.menuSub}>// choose a save slot</span>
                 </span>
               </button>
             ) : (
               <div style={s.menuRowDim}>
                 <span style={s.menuArrowDim}>▷</span>
                 <span style={s.menuInner}>
-                  <span style={s.menuLabelDim}>CONTINUE</span>
+                  <span style={s.menuLabelDim}>LOAD</span>
                   <span style={s.menuSubDim}>// no save data</span>
                 </span>
               </div>

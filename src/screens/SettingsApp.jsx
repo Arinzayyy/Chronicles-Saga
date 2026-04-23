@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
-import { saveGame } from '../saveState';
 import { playClick } from '../utils/sound';
 import {
   getVolume, setVolume,
   getMuted,  setMuted,
   subscribe as subscribeVolume,
 } from '../utils/volumeStore';
+import SaveSlotSelect from './SaveSlotSelect';
 import ch1 from '../assets/viewer_select/CH1.png';
 import ch2 from '../assets/viewer_select/CH2.png';
 import ch3 from '../assets/viewer_select/CH3.png';
@@ -48,6 +48,8 @@ export default function SettingsApp() {
   const charImage = CHAR_IMAGES[state.viewerIdentity] ?? null;
   const [confirmPending, setConfirmPending] = useState(false);
   const [soundsOpen,     setSoundsOpen]     = useState(false);
+  // null | 'save' | 'load' — when non-null, SaveSlotSelect takes over.
+  const [slotUIMode,     setSlotUIMode]     = useState(null);
 
   // Volume store local mirrors — subscribed below so other UIs updating
   // volume (e.g. MainMenuSettings) stay in sync with this panel.
@@ -79,6 +81,21 @@ export default function SettingsApp() {
     // 'mainmenu' without a RESET reducer action in GameContext — it fully
     // clears all in-memory state (beats, messages, scores, module flags).
     window.location.reload();
+  }
+
+  // When the slot-select screen is active, render it instead of settings.
+  // - Save mode: onClose returns to settings (the save was applied in place).
+  // - Load mode: if the player actually loads a slot, the game reducer
+  //   replaces state entirely; PhoneShell/SettingsApp will unmount on its
+  //   own because currentContext/currentApp change. onClose handles the
+  //   "player backed out" case.
+  if (slotUIMode) {
+    return (
+      <SaveSlotSelect
+        mode={slotUIMode}
+        onClose={() => setSlotUIMode(null)}
+      />
+    );
   }
 
   // Merge mutations from engine. The 'sounds' row also reflects live volume
@@ -173,8 +190,16 @@ export default function SettingsApp() {
         <div style={s.section}>
           <p style={s.sectionHeader}>SYSTEM</p>
           <div style={s.sectionCard}>
-            {/* Save Game row */}
-            <SaveRow onSave={() => saveGame(state)} />
+            {/* Save Game — opens slot select in "save" mode so the player
+                can pick any of the 5 manual slots (overwriting if occupied). */}
+            <SaveRow
+              onOpen={() => { playClick(); setSlotUIMode('save'); }}
+            />
+            {/* Load Game — opens slot select in "load" mode. Disabled rows
+                inside the picker reflect empty slots. */}
+            <LoadRow
+              onOpen={() => { playClick(); setSlotUIMode('load'); }}
+            />
             {/* Return to Main Menu row */}
             <ReturnRow
               confirmPending={confirmPending}
@@ -367,17 +392,10 @@ function SettingRow({ row, isLast }) {
 }
 
 // ─── Save Game row ────────────────────────────────────────────────────────────
-function SaveRow({ onSave }) {
-  const [hov,   setHov]   = useState(false);
-  const [saved, setSaved] = useState(false);
-
-  function handleSave() {
-    playClick();
-    onSave();
-    setSaved(true);
-    // Reset the confirmation flash after 2 seconds
-    setTimeout(() => setSaved(false), 2000);
-  }
+// Opens the slot-select UI in "save" mode. The slot picker itself is
+// responsible for confirming an overwrite if the target slot is occupied.
+function SaveRow({ onOpen }) {
+  const [hov, setHov] = useState(false);
 
   return (
     <div
@@ -388,32 +406,56 @@ function SaveRow({ onSave }) {
       }}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
-      onClick={handleSave}
+      onClick={onOpen}
     >
-      <div style={{ ...s.saveIconWrap, background: saved ? 'rgba(48,209,88,0.3)' : 'rgba(48,209,88,0.15)' }}>
-        {saved ? (
-          // Checkmark when saved
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke="rgba(48,209,88,0.95)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
-        ) : (
-          // Floppy disk / save icon
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke="rgba(48,209,88,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
-            <polyline points="17 21 17 13 7 13 7 21"/>
-            <polyline points="7 3 7 8 15 8"/>
-          </svg>
-        )}
+      <div style={{ ...s.saveIconWrap, background: 'rgba(48,209,88,0.15)' }}>
+        {/* Floppy disk / save icon */}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="rgba(48,209,88,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+          <polyline points="17 21 17 13 7 13 7 21"/>
+          <polyline points="7 3 7 8 15 8"/>
+        </svg>
       </div>
       <div style={s.returnLabelWrap}>
-        <span style={{ ...s.saveLabel, color: saved ? 'rgba(48,209,88,1)' : 'rgba(48,209,88,0.95)' }}>
-          {saved ? 'Saved ✓' : 'Save Game'}
+        <span style={{ ...s.saveLabel, color: 'rgba(48,209,88,0.95)' }}>
+          Save Game
         </span>
         <span style={s.saveSub}>
-          {saved ? '// progress written to memory' : '// write current progress to memory'}
+          // pick a slot · overwrite allowed
         </span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Load Game row ────────────────────────────────────────────────────────────
+// Opens the slot-select UI in "load" mode. Occupied slots become clickable;
+// empty slots stay disabled with an "// empty" hint.
+function LoadRow({ onOpen }) {
+  const [hov, setHov] = useState(false);
+
+  return (
+    <div
+      style={{
+        ...s.row,
+        borderBottom: '1px solid rgba(84,84,88,0.35)',
+        background: hov ? 'rgba(10,132,255,0.06)' : 'transparent',
+      }}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      onClick={onOpen}
+    >
+      <div style={s.loadIconWrap}>
+        {/* Folder-open icon */}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="rgba(10,132,255,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <div style={s.returnLabelWrap}>
+        <span style={s.loadLabel}>Load Game</span>
+        <span style={s.loadSub}>// restore from a save slot</span>
       </div>
     </div>
   );
@@ -570,6 +612,19 @@ const s = {
   saveLabel: { fontSize:'16px', lineHeight:1, transition:'color 0.2s' },
   saveSub: {
     fontSize:'10px', color:'rgba(48,209,88,0.45)',
+    fontFamily:MONO, letterSpacing:'0.06em',
+  },
+
+  // Load Game row
+  loadIconWrap: {
+    width:28, height:28, borderRadius:'7px',
+    background:'rgba(10,132,255,0.15)',
+    display:'flex', alignItems:'center', justifyContent:'center',
+    flexShrink:0,
+  },
+  loadLabel: { fontSize:'16px', lineHeight:1, color:'rgba(10,132,255,0.95)' },
+  loadSub: {
+    fontSize:'10px', color:'rgba(10,132,255,0.45)',
     fontFamily:MONO, letterSpacing:'0.06em',
   },
 
