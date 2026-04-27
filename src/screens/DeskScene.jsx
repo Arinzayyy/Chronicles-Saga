@@ -1,37 +1,90 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useGame } from '../context/GameContext';
 import { useEngine } from '../context/EngineContext';
 import { playClick } from '../utils/sound';
 import deskPhoto from '../assets/desk.jpg';
 
-// ─── Hotspot geometry ─────────────────────────────────────────────────────────
-const HOTSPOTS = {
-  monitor: {
-    top:    '0%',
-    left:   '18%',
-    width:  '62%',
-    height: '48%',
-  },
-  phone: {
-    top:    '58%',
-    left:   '74%',
-    width:  '14%',
-    height: '40%',
-  },
+// ─── Image-space hotspot definitions ─────────────────────────────────────────
+// Coordinates are fractions of the SOURCE IMAGE dimensions (2237 × 1571 px).
+// These are pixel-verified against desk.jpg and never need to change when the
+// viewport or window size changes — the useCoverRects hook handles that maths.
+//
+//  monitor : screen runs  x 23.1%→70.0%,  y  9.9%→27.4%
+//  phone   : body runs    x 17.9%→27.7%,  y 19.7%→38%   (generous for click area)
+const IMG_W = 2237;
+const IMG_H = 1571;
+
+const HOTSPOTS_IMG = {
+  monitor: { x: 0.341, y: 0.173, w: 0.344, h: 0.245 },
+  phone:   { x: 0.246, y: 0.363, w: 0.078, h: 0.136 },
 };
 
+// ─── useCoverRects ────────────────────────────────────────────────────────────
+// Converts image-space rects to viewport-space CSS values, correctly accounting
+// for objectFit: cover cropping at any window size.  Re-runs on every resize.
+function useCoverRects(containerRef) {
+  const [rects, setRects] = useState({});
+
+  const recalculate = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const vw = el.clientWidth;
+    const vh = el.clientHeight;
+
+    // objectFit: cover scales so both dimensions are >= viewport
+    const scale = Math.max(vw / IMG_W, vh / IMG_H);
+
+    const renderedW = IMG_W * scale;
+    const renderedH = IMG_H * scale;
+
+    // How many rendered pixels are hidden on each axis (centred crop)
+    const cropX = (renderedW - vw) / 2;
+    const cropY = (renderedH - vh) / 2;
+
+    const next = {};
+    for (const [key, h] of Object.entries(HOTSPOTS_IMG)) {
+      // Convert image-fraction → rendered pixels → subtract crop → viewport %
+      const left   = (h.x * renderedW - cropX) / vw * 100;
+      const top    = (h.y * renderedH - cropY) / vh * 100;
+      const width  = h.w * renderedW / vw * 100;
+      const height = h.h * renderedH / vh * 100;
+
+      next[key] = {
+        left:   `${left.toFixed(2)}%`,
+        top:    `${top.toFixed(2)}%`,
+        width:  `${width.toFixed(2)}%`,
+        height: `${height.toFixed(2)}%`,
+      };
+    }
+    setRects(next);
+  }, [containerRef]);
+
+  useEffect(() => {
+    recalculate();
+    window.addEventListener('resize', recalculate);
+    return () => window.removeEventListener('resize', recalculate);
+  }, [recalculate]);
+
+  return rects;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export default function DeskScene() {
   const { state, setContext, setApp } = useGame();
   const engine = useEngine();
 
   const [phoneHover,    setPhoneHover]    = useState(false);
   const [monitorHover,  setMonitorHover]  = useState(false);
-  const [zoomedHotspot, setZoomedHotspot] = useState(null);  // 'monitor' | 'phone' | null
-  const [fadeOut,       setFadeOut]       = useState(false); // drives black overlay opacity
+  const [zoomedHotspot, setZoomedHotspot] = useState(null);
+  const [fadeOut,       setFadeOut]       = useState(false);
 
-  const timers = useRef([]);
-  // Prevent double-firing if both hotspots somehow clicked
+  const rootRef      = useRef(null);
+  const timers       = useRef([]);
   const transitioning = useRef(false);
+
+  // Pixel-perfect hotspot rects, recalculated on every resize
+  const rects = useCoverRects(rootRef);
 
   useEffect(() => {
     return () => timers.current.forEach(clearTimeout);
@@ -40,43 +93,26 @@ export default function DeskScene() {
   function triggerTransition(hotspotKey, action) {
     if (transitioning.current) return;
     transitioning.current = true;
-
-    // Step 1 (0ms): scale the hotspot to 1.08
     setZoomedHotspot(hotspotKey);
-
-    // Step 2 (200ms): zoom settles → start fade to black
-    timers.current.push(setTimeout(() => {
-      setFadeOut(true);
-    }, 200));
-
-    // Step 3 (600ms): fade complete → switch context
-    timers.current.push(setTimeout(() => {
-      action();
-    }, 600));
+    timers.current.push(setTimeout(() => setFadeOut(true), 200));
+    timers.current.push(setTimeout(() => action(), 600));
   }
 
   function handlePhoneClick() {
     playClick();
     triggerTransition('phone', () => {
       setContext('phone');
-      // If a beat is already in progress, return directly to SMS conversation.
-      // Otherwise land on PhoneHome so the player can tap in naturally.
-      if (state.currentBeat) {
-        setApp('sms');
-      }
+      if (state.currentBeat) setApp('sms');
     });
   }
 
   function handleMonitorClick() {
     playClick();
-    triggerTransition('monitor', () => {
-      // setContext resets currentApp to null → ComputerHome renders
-      setContext('computer');
-    });
+    triggerTransition('monitor', () => setContext('computer'));
   }
 
   return (
-    <div style={s.root}>
+    <div ref={rootRef} style={s.root}>
 
       {/* ── Photo background ──────────────────────────────────────────── */}
       <img
@@ -94,7 +130,7 @@ export default function DeskScene() {
       <button
         style={{
           ...s.hotspot,
-          ...HOTSPOTS.monitor,
+          ...rects.monitor,
           ...(monitorHover && !transitioning.current ? s.hotspotActive : {}),
           transform: zoomedHotspot === 'monitor' ? 'scale(1.08)' : 'scale(1)',
         }}
@@ -113,7 +149,7 @@ export default function DeskScene() {
       <button
         style={{
           ...s.hotspot,
-          ...HOTSPOTS.phone,
+          ...rects.phone,
           ...(phoneHover && !transitioning.current ? s.hotspotActive : {}),
           transform: zoomedHotspot === 'phone' ? 'scale(1.08)' : 'scale(1)',
         }}
@@ -137,19 +173,13 @@ export default function DeskScene() {
       </p>
 
       {/* ── Fade-to-black overlay ─────────────────────────────────────── */}
-      <div
-        style={{
-          ...s.fadeOverlay,
-          opacity: fadeOut ? 1 : 0,
-        }}
-      />
+      <div style={{ ...s.fadeOverlay, opacity: fadeOut ? 1 : 0 }} />
 
     </div>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-
 const s = {
   root: {
     position: 'relative',
@@ -190,7 +220,6 @@ const s = {
     alignItems: 'flex-end',
     justifyContent: 'center',
     paddingBottom: '10px',
-    // All three properties animated together
     transition: 'background 0.2s ease, border-color 0.2s ease, transform 0.2s ease',
   },
 
@@ -230,7 +259,6 @@ const s = {
     margin: 0,
   },
 
-  // Sits above everything — fades from 0→1 over 400ms to black out the scene
   fadeOverlay: {
     position: 'fixed',
     inset: 0,

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hotspot Calibrator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #111; color: #eee; font-family: monospace; overflow: hidden; }
+
+  #canvas-wrap {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  #bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+  }
+
+  .box {
+    position: absolute;
+    border: 2px solid;
+    cursor: move;
+    user-select: none;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 6px;
+  }
+  .box-label {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    padding: 2px 6px;
+    border-radius: 3px;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .resize-handle {
+    position: absolute;
+    right: 0; bottom: 0;
+    width: 14px; height: 14px;
+    cursor: se-resize;
+    border-top: 2px solid;
+    border-left: 2px solid;
+    transform: rotate(180deg);
+  }
+
+  #monitor-box  { border-color: #4da6ff; background: rgba(77,166,255,0.12); }
+  #monitor-box  .resize-handle { border-color: #4da6ff; }
+  #monitor-box  .box-label { background: rgba(77,166,255,0.7); color: #000; }
+
+  #phone-box    { border-color: #e94560; background: rgba(233,69,96,0.12); }
+  #phone-box    .resize-handle { border-color: #e94560; }
+  #phone-box    .box-label { background: rgba(233,69,96,0.7); color: #fff; }
+
+  #panel {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.88);
+    border-top: 1px solid #333;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    font-size: 12px;
+    z-index: 999;
+  }
+  #panel strong { color: #888; font-weight: normal; }
+  #coords { color: #0f9; flex: 1; }
+  #copy-btn {
+    background: #1a1a2e;
+    border: 1px solid #4da6ff;
+    color: #4da6ff;
+    padding: 6px 16px;
+    cursor: pointer;
+    font-family: monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+  }
+  #copy-btn:hover { background: #4da6ff; color: #000; }
+  #hint { color: #555; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<div id="canvas-wrap">
+  <img id="bg" src="src/assets/desk.jpg" alt="">
+
+  <!-- Monitor box -->
+  <div class="box" id="monitor-box">
+    <div class="resize-handle"></div>
+    <span class="box-label">monitor</span>
+  </div>
+
+  <!-- Phone box -->
+  <div class="box" id="phone-box">
+    <div class="resize-handle"></div>
+    <span class="box-label">phone</span>
+  </div>
+</div>
+
+<div id="panel">
+  <span id="hint">Drag boxes · drag corner to resize · then copy →</span>
+  <span id="coords">—</span>
+  <button id="copy-btn">Copy HOTSPOTS_IMG</button>
+</div>
+
+<script>
+  const IMG_W = 2237, IMG_H = 1571;
+
+  // Starting positions (from current code values)
+  const INITIAL = {
+    monitor: { x: 0.231, y: 0.060, w: 0.469, h: 0.220 },
+    phone:   { x: 0.170, y: 0.180, w: 0.115, h: 0.220 },
+  };
+
+  const wrap = document.getElementById('canvas-wrap');
+  const bg   = document.getElementById('bg');
+
+  // ── Compute objectFit:cover geometry ──────────────────────────────────────
+  function coverGeometry() {
+    const vw = wrap.clientWidth;
+    const vh = wrap.clientHeight;
+    const scale  = Math.max(vw / IMG_W, vh / IMG_H);
+    const rendW  = IMG_W * scale;
+    const rendH  = IMG_H * scale;
+    const cropX  = (rendW - vw) / 2;
+    const cropY  = (rendH - vh) / 2;
+    return { scale, rendW, rendH, cropX, cropY, vw, vh };
+  }
+
+  // ── Convert image-fraction → screen px ────────────────────────────────────
+  function imgToScreen(ix, iy, iw, ih) {
+    const { scale, cropX, cropY } = coverGeometry();
+    return {
+      left:   ix * IMG_W * scale - cropX,
+      top:    iy * IMG_H * scale - cropY,
+      width:  iw * IMG_W * scale,
+      height: ih * IMG_H * scale,
+    };
+  }
+
+  // ── Convert screen px → image-fraction ────────────────────────────────────
+  function screenToImg(left, top, width, height) {
+    const { scale, cropX, cropY } = coverGeometry();
+    return {
+      x: (left  + cropX) / (IMG_W * scale),
+      y: (top   + cropY) / (IMG_H * scale),
+      w: width             / (IMG_W * scale),
+      h: height            / (IMG_H * scale),
+    };
+  }
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  const state = {
+    monitor: { ...INITIAL.monitor },
+    phone:   { ...INITIAL.phone   },
+  };
+
+  // ── Apply state to DOM ─────────────────────────────────────────────────────
+  function applyState() {
+    for (const key of ['monitor', 'phone']) {
+      const el  = document.getElementById(key + '-box');
+      const css = imgToScreen(state[key].x, state[key].y, state[key].w, state[key].h);
+      el.style.left   = css.left   + 'px';
+      el.style.top    = css.top    + 'px';
+      el.style.width  = css.width  + 'px';
+      el.style.height = css.height + 'px';
+    }
+    updateCoords();
+  }
+
+  function updateCoords() {
+    const m = state.monitor, p = state.phone;
+    document.getElementById('coords').textContent =
+      `monitor x:${m.x.toFixed(3)} y:${m.y.toFixed(3)} w:${m.w.toFixed(3)} h:${m.h.toFixed(3)}` +
+      `   |   phone x:${p.x.toFixed(3)} y:${p.y.toFixed(3)} w:${p.w.toFixed(3)} h:${p.h.toFixed(3)}`;
+  }
+
+  // ── Drag (move) ────────────────────────────────────────────────────────────
+  function makeDraggable(key) {
+    const el  = document.getElementById(key + '-box');
+    const handle = el.querySelector('.resize-handle');
+    let dragging = false, startMX, startMY, startLeft, startTop;
+
+    el.addEventListener('mousedown', e => {
+      if (e.target === handle) return; // let resize handle its own drag
+      dragging = true;
+      startMX   = e.clientX;
+      startMY   = e.clientY;
+      startLeft = parseFloat(el.style.left);
+      startTop  = parseFloat(el.style.top);
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      const newLeft = startLeft + (e.clientX - startMX);
+      const newTop  = startTop  + (e.clientY - startMY);
+      el.style.left = newLeft + 'px';
+      el.style.top  = newTop  + 'px';
+      const s = screenToImg(newLeft, newTop,
+        parseFloat(el.style.width), parseFloat(el.style.height));
+      state[key] = s;
+      updateCoords();
+    });
+
+    document.addEventListener('mouseup', () => { dragging = false; });
+  }
+
+  // ── Resize (se corner) ────────────────────────────────────────────────────
+  function makeResizable(key) {
+    const el  = document.getElementById(key + '-box');
+    const handle = el.querySelector('.resize-handle');
+    let resizing = false, startMX, startMY, startW, startH;
+
+    handle.addEventListener('mousedown', e => {
+      resizing = true;
+      startMX = e.clientX;
+      startMY = e.clientY;
+      startW  = parseFloat(el.style.width);
+      startH  = parseFloat(el.style.height);
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    document.addEventListener('mousemove', e => {
+      if (!resizing) return;
+      const newW = Math.max(40, startW + (e.clientX - startMX));
+      const newH = Math.max(20, startH + (e.clientY - startMY));
+      el.style.width  = newW + 'px';
+      el.style.height = newH + 'px';
+      const s = screenToImg(parseFloat(el.style.left), parseFloat(el.style.top), newW, newH);
+      state[key] = s;
+      updateCoords();
+    });
+
+    document.addEventListener('mouseup', () => { resizing = false; });
+  }
+
+  // ── Copy button ───────────────────────────────────────────────────────────
+  document.getElementById('copy-btn').addEventListener('click', () => {
+    const m = state.monitor, p = state.phone;
+    const code =
+`const HOTSPOTS_IMG = {
+  monitor: { x: ${m.x.toFixed(3)}, y: ${m.y.toFixed(3)}, w: ${m.w.toFixed(3)}, h: ${m.h.toFixed(3)} },
+  phone:   { x: ${p.x.toFixed(3)}, y: ${p.y.toFixed(3)}, w: ${p.w.toFixed(3)}, h: ${p.h.toFixed(3)} },
+};`;
+    navigator.clipboard.writeText(code).then(() => {
+      const btn = document.getElementById('copy-btn');
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy HOTSPOTS_IMG', 1500);
+    });
+  });
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  makeDraggable('monitor');
+  makeDraggable('phone');
+  makeResizable('monitor');
+  makeResizable('phone');
+
+  // Wait for image to load so clientWidth/Height are stable
+  function init() {
+    applyState();
+    window.addEventListener('resize', applyState);
+  }
+
+  if (bg.complete) init();
+  else bg.addEventListener('load', init);
+</script>
+</body>
+</html>
