@@ -98,7 +98,9 @@ export default function Prologue() {
 
     fadeOutBGM(800);
 
-    setTimeout(() => completePrologue(), 800);
+    // Track this timer so it's cancelled if the component unmounts before it fires.
+    const t = setTimeout(() => completePrologue(), 800);
+    timersRef.current.push(t);
   }
 
   return (

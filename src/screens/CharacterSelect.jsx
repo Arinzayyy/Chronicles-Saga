@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 import { playClick } from '../utils/sound';
 import ch1 from '../assets/viewer_select/CH1.png';
@@ -116,12 +116,18 @@ export default function CharacterSelect() {
   const { setViewerIdentity } = useGame();
   const [selected,   setSelected]   = useState(null);
   const [confirming, setConfirming] = useState(false);
+  const confirmTimerRef = useRef(null);
+
+  // Clean up the confirm transition timer if the component unmounts early.
+  useEffect(() => () => {
+    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+  }, []);
 
   function handleConfirm() {
     if (!selected || confirming) return;
     playClick();
     setConfirming(true);
-    setTimeout(() => setViewerIdentity(selected), 380);
+    confirmTimerRef.current = setTimeout(() => setViewerIdentity(selected), 380);
   }
 
   return (

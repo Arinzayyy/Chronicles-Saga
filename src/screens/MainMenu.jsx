@@ -75,10 +75,10 @@ export default function MainMenu() {
   }
 
   function toggleMute() {
-    playClick();
-    // Volume store is the single source; subscribers (BGM element, etc.)
-    // receive the change automatically.
+    // Toggle mute FIRST so the click sound plays at the new (unmuted) volume
+    // rather than the old one — otherwise "unmute" clicks are always silent.
     toggleMuted();
+    playClick();
   }
 
   function openSettings() {

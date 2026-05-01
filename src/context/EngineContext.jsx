@@ -24,13 +24,18 @@ export function EngineProvider({ children }) {
   useEffect(() => {
     if (!state.flags?.__pendingResume__) return;
 
+    // Guard: engineRef is initialised synchronously during render (via the
+    // `if (!engineRef.current)` block below), so beatMap is always available
+    // by the time any effect fires — but defend anyway for safety.
+    if (!engineRef.current?.beatMap) return;
+
     // Clear the flag immediately so this effect doesn't re-fire
     setFlag('__pendingResume__', false);
 
     const currentBeat = state.currentBeat;
     if (!currentBeat) return;
 
-    const beat = engineRef.current?.beatMap?.[currentBeat];
+    const beat = engineRef.current.beatMap[currentBeat];
     if (!beat) return;
 
     // If beat has player choices, the UI re-renders them — no advancement needed

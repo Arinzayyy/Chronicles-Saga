@@ -30,10 +30,14 @@ export class Engine {
    * @param {Object} stateRef - { current: gameState } ref, kept fresh by EngineContext
    */
   constructor(actions, stateRef) {
-    this.actions  = actions;
-    this.stateRef = stateRef;
-    this.beatMap  = this._buildBeatMap();
-    this._timers  = [];
+    this.actions     = actions;
+    this.stateRef    = stateRef;
+    this.beatMap     = this._buildBeatMap();
+    this._timers     = [];
+    // Incremented every time timers are cleared. Directive callbacks capture
+    // the generation at scheduling time and bail out if it no longer matches,
+    // preventing stale directives from an old beat from corrupting new state.
+    this._generation = 0;
   }
 
   // ─── Public API ───────────────────────────────────────────────────────────
@@ -113,8 +117,12 @@ export class Engine {
         continue;
       }
 
-      const at = offset;
-      const t  = setTimeout(() => this.executeDirective(directive), at);
+      const at  = offset;
+      const gen = this._generation;
+      const t   = setTimeout(() => {
+        if (this._generation !== gen) return; // beat was superseded — drop
+        this.executeDirective(directive);
+      }, at);
       this._timers.push(t);
 
       offset += STAGGER[directive.type] ?? STAGGER.default;
@@ -123,7 +131,11 @@ export class Engine {
     // Auto-advance when the beat has on_complete and no player choices
     const hasChoices = beat?.player_choices?.length > 0;
     if (beat?.on_complete && !hasChoices) {
-      const t = setTimeout(() => this.advanceBeat(beat.on_complete), offset + 300);
+      const gen = this._generation;
+      const t   = setTimeout(() => {
+        if (this._generation !== gen) return; // beat was superseded — drop
+        this.advanceBeat(beat.on_complete);
+      }, offset + 300);
       this._timers.push(t);
     }
   }
@@ -319,7 +331,7 @@ export class Engine {
     for (const chapter of storyData.chapters) {
       for (const beat of chapter.beats) {
         if (map[beat.id]) {
-          console.warn(`[Engine] Duplicate beat id: "${beat.id}" (chapter: ${chapter.id})`);
+          console.error(`[Engine] Duplicate beat id: "${beat.id}" (chapter: ${chapter.id})`);
         }
         map[beat.id] = beat;
       }
@@ -330,6 +342,7 @@ export class Engine {
   _clearTimers() {
     this._timers.forEach(clearTimeout);
     this._timers = [];
+    this._generation++;
   }
 
   destroy() {
