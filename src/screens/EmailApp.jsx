@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 import { useEngine } from '../context/EngineContext';
 import { playClick } from '../utils/sound';
@@ -13,6 +13,10 @@ export default function EmailApp() {
   const [choiceDone,  setChoiceDone]    = useState(false);
 
   const { emails } = state;
+
+  // Clear compose state whenever the active email changes (e.g. back navigation)
+  // so a stale ComposeView can never bleed into the next email open.
+  useEffect(() => { setComposing(null); }, [activeEmail]);
 
   function openEmail(email) {
     playClick();

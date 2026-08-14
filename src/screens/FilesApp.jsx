@@ -90,7 +90,7 @@ export default function FilesApp() {
 // ─── File row ─────────────────────────────────────────────────────────────
 function FileRow({ file, onOpen }) {
   const [hov, setHov] = useState(false);
-  const locked = file.locked;
+  const locked = file.locked === true;
 
   return (
     <button

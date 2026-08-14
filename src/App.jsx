@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Component } from 'react';
 import { GameProvider, useGame } from './context/GameContext';
 import { EngineProvider } from './context/EngineContext';
 import { tryPlay, fadeOut } from './audioController';
@@ -18,6 +18,51 @@ import FilesApp        from './screens/FilesApp';
 import Terminal            from './screens/Terminal';
 import NarrationOverlay from './screens/NarrationOverlay';
 import './App.css';
+
+// ─── Error Boundary ───────────────────────────────────────────────────────────
+// Catches render-phase errors so a single broken screen can't wipe the whole
+// app. Displays a minimal recovery UI instead of a blank white crash.
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{
+          position: 'fixed', inset: 0, background: '#0a0a0f',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 16,
+          fontFamily: "'Courier New', monospace", color: 'rgba(255,255,255,0.6)',
+          padding: 32, textAlign: 'center',
+        }}>
+          <p style={{ fontSize: 13, letterSpacing: '0.12em', margin: 0 }}>
+            [ an unexpected error occurred ]
+          </p>
+          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', margin: 0 }}>
+            {this.state.error?.message ?? 'unknown error'}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              marginTop: 8, padding: '8px 24px',
+              background: 'transparent', border: '1px solid rgba(255,255,255,0.2)',
+              color: 'rgba(255,255,255,0.5)', cursor: 'pointer',
+              fontFamily: 'inherit', fontSize: 11, letterSpacing: '0.12em',
+            }}
+          >
+            reload
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ─── Fade-in wrapper ──────────────────────────────────────────────────────────
 // Wraps any incoming screen: starts at opacity 0, transitions to 1 after paint.
@@ -139,12 +184,14 @@ function GameRouter() {
 // ─── Root ─────────────────────────────────────────────────────────────────────
 export default function App() {
   return (
-    <GameProvider>
-      <EngineProvider>
-        <AudioManager />
-        <GameRouter />
-        <NarrationOverlay />
-      </EngineProvider>
-    </GameProvider>
+    <ErrorBoundary>
+      <GameProvider>
+        <EngineProvider>
+          <AudioManager />
+          <GameRouter />
+          <NarrationOverlay />
+        </EngineProvider>
+      </GameProvider>
+    </ErrorBoundary>
   );
 }

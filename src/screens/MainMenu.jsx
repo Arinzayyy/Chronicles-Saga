@@ -77,7 +77,12 @@ export default function MainMenu() {
   function handleNewGame() { playClick(); newGame(); }
   function handleLoad()    { if (!saveExists) return; playClick(); setShowLoad(true); }
   function openSettings()  { playClick(); setShowSettings(true); }
-  function toggleMute()    { playClick(); toggleMuted(); }
+  function toggleMute() {
+    // Toggle mute FIRST so the click sound plays at the new (unmuted) volume
+    // rather than the old one — otherwise "unmute" clicks are always silent.
+    toggleMuted();
+    playClick();
+  }
 
   // Menu rows, top → bottom. Diagonal cascade (varying angle + growing indent),
   // primary actions large up top, secondary options smaller and stepped right.

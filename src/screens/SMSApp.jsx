@@ -341,7 +341,7 @@ export default function SMSApp() {
     setChoiceSelected(true);
     const body = choice.label.replace(/^["""'']|["""'']$/g, '').trim();
     const playerMsg = {
-      id:        `player_choice_${Date.now()}`,
+      id:        `player_choice_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
       sender:    'player',
       threadId:  activeThread,
       body,

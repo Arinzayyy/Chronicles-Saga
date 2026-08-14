@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 import { playClick } from '../utils/sound';
 import ch1 from '../assets/viewer_select/CH1.png';
@@ -26,6 +26,12 @@ export default function CharacterSelect() {
   const [hovered,    setHovered]    = useState(null);
   const [selected,   setSelected]   = useState(null);
   const [confirming, setConfirming] = useState(false);
+  const confirmTimerRef = useRef(null);
+
+  // Clean up the confirm transition timer if the component unmounts early.
+  useEffect(() => () => {
+    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+  }, []);
 
   // What's "open" right now: an explicit selection wins over a hover.
   const active = selected ?? hovered;
@@ -40,7 +46,7 @@ export default function CharacterSelect() {
     if (!selected || confirming) return;
     playClick();
     setConfirming(true);
-    setTimeout(() => setViewerIdentity(selected), 440);
+    confirmTimerRef.current = setTimeout(() => setViewerIdentity(selected), 440);
   }
 
   return (

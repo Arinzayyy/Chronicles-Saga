@@ -95,7 +95,7 @@ export default function Terminal() {
       setGame(null);
       if (beatId) engine.advanceBeat(beatId);
     }, 1800);
-  }, [gameOver, state.flags, engine, setFlag]);
+  }, [gameOver, state.flags.__minigame__, engine, setFlag]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleCellClick(cell) {
     if (!game || gameOver) return;

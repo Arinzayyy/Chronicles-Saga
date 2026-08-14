@@ -21,9 +21,14 @@ subscribe(() => {
 
 export function tryPlay() {
   if (started) return;
+  // Set flag before play() resolves to prevent concurrent calls from
+  // racing — each fires play() before any .then() runs otherwise.
+  started = true;
   audio.play()
-    .then(() => { started = true; })
-    .catch(() => {/* autoplay blocked — will retry on next interaction */});
+    .catch(() => {
+      // Autoplay blocked — reset so next interaction can retry.
+      started = false;
+    });
 }
 
 /** Fade to silence over `ms` milliseconds, then pause. */

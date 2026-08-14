@@ -161,14 +161,19 @@ export default function ComputerHome() {
 
   const unreadCount = state.emails.filter(e => !e.isRead).length;
 
+  // Always-fresh ref so the keydown listener below can call the latest
+  // navigate() without capturing a stale fadingTo closure.
+  const navigateRef = useRef(null);
+  navigateRef.current = navigate;
+
   // Escape → desk
   useEffect(() => {
     function onKey(e) {
-      if (e.key === 'Escape') navigate('desk');
+      if (e.key === 'Escape') navigateRef.current('desk');
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
