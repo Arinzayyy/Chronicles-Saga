@@ -1,220 +1,271 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useGame } from '../context/GameContext';
-import { hasSave } from '../saveState';
-import bgImage from '../assets/main_menu_bg.jpg';
+import { hasSave, getLastViewerIdentity } from '../saveState';
 import { playClick } from '../utils/sound';
 import { getMuted, toggleMuted, subscribe as subscribeVolume } from '../utils/volumeStore';
 import MainMenuSettings from './MainMenuSettings';
 import SaveSlotSelect from './SaveSlotSelect';
 
 // NOTE: BGM is owned by src/audioController.js (single source of truth).
-// Previously this file created a second <Audio> causing duplicate playback —
-// that's been removed as part of the volume fix.
 
-const ACCENT = '#E94560';
-const MONO   = "'Courier New', 'Consolas', 'Liberation Mono', monospace";
-const BG     = '#0a0a0f';
-const DIM    = 'rgba(255,255,255,0.18)';
-const MID    = 'rgba(255,255,255,0.45)';
+// Default persona-style key art (shown before any viewer is chosen). Drop the
+// artist file at src/assets/main_menu_persona.jpg (or .png) and it's picked up
+// automatically; until then we fall back to the old background so the build
+// never breaks on a missing asset.
+const personaImgs = import.meta.glob('../assets/main_menu_persona.*', {
+  eager: true, query: '?url', import: 'default',
+});
+const DEFAULT_BG = Object.values(personaImgs)[0] ?? null;
 
-function useTime() {
-  const fmt = () => new Date().toTimeString().slice(0, 5);
-  const [time, setTime] = useState(fmt);
-  useEffect(() => {
-    const iv = setInterval(() => setTime(fmt()), 10000);
-    return () => clearInterval(iv);
-  }, []);
-  return time;
+// Per-viewer key art. Drop a file named after each viewer into
+// src/assets/viewer_menu/ (Dara, Zael, Seun, Fox — jpg/png/webp) and the menu
+// uses it as the background once that viewer has been chosen. Missing files
+// simply fall back to DEFAULT_BG, so the build never breaks.
+const viewerImgs = import.meta.glob('../assets/viewer_menu/*.{jpg,jpeg,png,webp}', {
+  eager: true, query: '?url', import: 'default',
+});
+const VIEWER_BG = {};
+for (const [path, url] of Object.entries(viewerImgs)) {
+  const stem = path.split('/').pop().replace(/\.[^.]+$/, '');
+  VIEWER_BG[stem] = url;
+  VIEWER_BG[stem.toLowerCase()] = url; // forgiving of casing
 }
 
+function bgForViewer(viewer) {
+  if (!viewer) return DEFAULT_BG;
+  return VIEWER_BG[viewer] ?? VIEWER_BG[viewer.toLowerCase()] ?? DEFAULT_BG;
+}
+
+const RED   = '#d3132e';
+const TEAL  = '#19b8b4';
+const HEAVY = "'Anton', 'Archivo Black', 'Arial Black', Impact, sans-serif";
+const MONO  = "'Courier New', 'Consolas', monospace";
+
 export default function MainMenu() {
-  const { newGame } = useGame();
+  const { newGame, state } = useGame();
+  // Reflect the chosen viewer as the menu's key art: in-session identity first,
+  // else the most recently saved one, else the default art.
+  const lastViewer = useMemo(() => getLastViewerIdentity(), []);
+  const BG_URL = bgForViewer(state?.viewerIdentity ?? lastViewer);
   const [visible,      setVisible]      = useState(false);
-  const [blink,        setBlink]        = useState(true);
   const [muted,        setMutedUI]      = useState(getMuted());
   const [saveExists,   setSaveExists]   = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showLoad,     setShowLoad]     = useState(false);
-  const time = useTime();
+  const [par,          setPar]          = useState({ x: 0, y: 0 });
+  const [sel,          setSel]          = useState(0); // highlighted menu row
 
-  // Keep mute indicator synced with the volume store (also updated from
-  // the Settings screen, so we need to react to external changes).
   useEffect(() => subscribeVolume(s => setMutedUI(s.muted)), []);
-
-  // Check for a save file on mount so the Continue button knows whether to
-  // be active. We do this in a useEffect so it only runs client-side
-  // (localStorage isn't available during SSR if this were ever server-rendered).
-  useEffect(() => {
-    setSaveExists(hasSave());
-  }, []);
-
-  // Fade-in
+  useEffect(() => { setSaveExists(hasSave()); }, []);
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 60);
     return () => clearTimeout(t);
   }, []);
 
-  // Dot blink
+  // Subtle whole-image parallax (placeholder for layered art later —
+  // when the artist ships layers, split this into bg/char depths).
   useEffect(() => {
-    const iv = setInterval(() => setBlink(b => !b), 800);
-    return () => clearInterval(iv);
+    function onMove(e) {
+      const nx = (e.clientX / window.innerWidth)  - 0.5;
+      const ny = (e.clientY / window.innerHeight) - 0.5;
+      setPar({ x: nx * -14, y: ny * -10 });
+    }
+    window.addEventListener('mousemove', onMove);
+    return () => window.removeEventListener('mousemove', onMove);
   }, []);
 
-  function handleNewGame() {
-    playClick();
-    // newGame() clears any existing save then dispatches START_GAME.
-    // This prevents old save data from being overwritten accidentally.
-    newGame();
-    // Do NOT stop audio here — Prologue will fade it out
-  }
+  function handleNewGame() { playClick(); newGame(); }
+  function handleLoad()    { if (!saveExists) return; playClick(); setShowLoad(true); }
+  function openSettings()  { playClick(); setShowSettings(true); }
+  function toggleMute()    { playClick(); toggleMuted(); }
 
-  function handleLoad() {
-    if (!saveExists) return;
-    playClick();
-    setShowLoad(true);
-  }
+  // Menu rows, top → bottom. Diagonal cascade (varying angle + growing indent),
+  // primary actions large up top, secondary options smaller and stepped right.
+  // The selected row scales up + turns red so it dominates (see .pm-selected).
+  const items = [
+    { label: 'New Game',    onActivate: handleNewGame, rot: '-5deg', ind: '0px',   size: 'clamp(66px, 10.5vw, 148px)' },
+    { label: 'Continue',    onActivate: handleLoad, locked: !saveExists, caret: saveExists, rot: '-3deg', ind: '34px', size: 'clamp(66px, 10.5vw, 148px)' },
+    { label: 'Settings',    onActivate: openSettings, rot: '-4deg', ind: '84px',  size: 'clamp(54px, 8vw, 112px)' },
+    { label: 'Change Saga', locked: true, soon: true, rot: '-2deg', ind: '108px', size: 'clamp(54px, 8vw, 112px)' },
+    { label: 'Gallery',     locked: true, soon: true, rot: '-3.5deg', ind: '146px', size: 'clamp(54px, 8vw, 112px)' },
+  ];
 
-  function toggleMute() {
-    playClick();
-    // Volume store is the single source; subscribers (BGM element, etc.)
-    // receive the change automatically.
-    toggleMuted();
-  }
+  // Keyboard / controller navigation: ↑↓ to move, Enter to confirm.
+  useEffect(() => {
+    function onKey(e) {
+      if (showSettings || showLoad) return;
+      if (e.key === 'ArrowDown' || e.key === 's') { setSel(i => Math.min(i + 1, items.length - 1)); e.preventDefault(); }
+      else if (e.key === 'ArrowUp' || e.key === 'w') { setSel(i => Math.max(i - 1, 0)); e.preventDefault(); }
+      else if (e.key === 'Enter' || e.key === ' ') {
+        const it = items[sel];
+        if (it && !it.locked) it.onActivate();
+        e.preventDefault();
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [sel, saveExists, showSettings, showLoad]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function openSettings() {
-    playClick();
-    setShowSettings(true);
-  }
-
-  // When the settings overlay is open, render it instead of the menu.
-  // Using conditional render (vs overlay z-index) keeps focus/keyboard sane.
-  if (showSettings) {
-    return <MainMenuSettings onClose={() => setShowSettings(false)} />;
-  }
-
-  // Same pattern for the save-slot select screen. When a slot is loaded,
-  // the game router takes over (gamePhase flips to "playing") and this
-  // component unmounts on its own.
-  if (showLoad) {
-    return (
-      <SaveSlotSelect
-        mode="load"
-        onClose={() => setShowLoad(false)}
-      />
-    );
-  }
+  if (showSettings) return <MainMenuSettings onClose={() => setShowSettings(false)} />;
+  if (showLoad)     return <SaveSlotSelect mode="load" onClose={() => setShowLoad(false)} />;
 
   return (
-    <div style={s.root} className={visible ? 'mm-in' : ''}>
-      {/* Background image */}
-      <div style={s.bgImg} aria-hidden="true" />
-
-      {/* Dark overlay */}
-      <div style={s.bgOverlay} aria-hidden="true" />
-
-      {/* Scanline overlay */}
-      <div style={s.scanlines} aria-hidden="true" />
+    <div style={s.root} className={visible ? 'pm-in' : 'pm-pre'}>
+      {/* Key art */}
+      <div
+        style={{
+          ...s.bgImg,
+          backgroundImage: BG_URL ? `url(${BG_URL})` : 'none',
+          transform: `scale(1.06) translate(${par.x}px, ${par.y}px)`,
+        }}
+        aria-hidden="true"
+      />
+      {/* Left-edge legibility wash over the teal area */}
+      <div style={s.wash} aria-hidden="true" />
 
       <div style={s.layout}>
-
-        {/* ══ LEFT PANEL ══ */}
-        <div style={s.left}>
-          <div style={s.sysTag}>SYS://CHRONICLES</div>
-          <div style={s.encryptedLabel}>// ENCRYPTED SIGNAL ACTIVE</div>
-
-          <div style={s.titleWrap}>
-            <span style={s.titleChronicles}>CHRONICLES</span>
-            <span style={s.titleSaga}>SAGA</span>
-          </div>
-
-          <div style={s.divider} />
-
-          <blockquote style={s.quote}>
-            <span style={s.quoteLine}>Someone went dark. Not cleanly.</span>
-            <span style={s.quoteLine}>You&apos;re the only one not in the system.</span>
-            <span style={s.quoteAttrib}>— intercepted fragment</span>
-          </blockquote>
-
-          <div style={{ flex: 1 }} />
-
-          <div style={s.statusBar}>
-            <span style={{ ...s.dot, background: ACCENT,    boxShadow: `0 0 6px ${ACCENT}`,    opacity: blink ? 1 : 0.2 }} />
-            <span style={{ ...s.dot, background: '#4da6ff', boxShadow: '0 0 6px #4da6ff' }} />
-            <span style={{ ...s.dot, background: '#ffffff', boxShadow: '0 0 6px #ffffff99' }} />
-            <span style={s.statusText}>LIVE SIGNAL // GROUP CHAT: STATIC</span>
-          </div>
-        </div>
-
-        {/* ══ RIGHT PANEL ══ */}
-        <div style={s.right}>
-
-          <div style={s.topBar}>
-            <span style={s.clock}>{time}</span>
-          </div>
-
-          <div style={s.sagaCard}>
-            <div style={s.sagaLabel}>ACTIVE SAGA</div>
-            <div style={s.sagaTitle}>HALIMA RETRIEVAL</div>
-            <div style={s.sagaMeta}>
-              <span style={s.sagaMetaItem}>■ ONGOING</span>
-              <span style={s.sagaMetaItem}>NODE 04</span>
-            </div>
-            <p style={s.sagaDesc}>
-              A distress signal with Halima&apos;s signature. A warehouse that was never a
-              hideout. Someone is watching how you respond.
-            </p>
-          </div>
-
-          <nav style={s.menu}>
-            <button style={s.menuRowActive} onClick={handleNewGame}>
-              <span style={s.menuArrow}>▶</span>
-              <span style={s.menuInner}>
-                <span style={s.menuLabel}>NEW GAME</span>
-                <span style={s.menuSub}>// begin halima retrieval from scene 1</span>
-              </span>
-            </button>
-
-            {saveExists ? (
-              <button style={s.menuRowActive} onClick={handleLoad}>
-                <span style={s.menuArrow}>▶</span>
-                <span style={s.menuInner}>
-                  <span style={s.menuLabel}>LOAD</span>
-                  <span style={s.menuSub}>// choose a save slot</span>
-                </span>
+        {/* ══ MENU STACK ══ */}
+        <nav style={s.menu} aria-label="Main menu">
+          {items.map((it, i) => {
+            const selected = i === sel;
+            const cls = [
+              'pm-item',
+              it.locked ? 'pm-locked' : '',
+              selected ? 'pm-selected' : '',
+            ].filter(Boolean).join(' ');
+            return (
+              <button
+                key={it.label}
+                className={cls}
+                style={{ '--rot': it.rot, '--ind': it.ind, fontSize: it.size }}
+                onMouseEnter={() => setSel(i)}
+                onFocus={() => setSel(i)}
+                onClick={() => { if (!it.locked) it.onActivate(); }}
+                aria-disabled={it.locked || undefined}
+                title={it.soon ? 'Coming soon' : undefined}
+              >
+                <span className="pm-fill">{it.label}</span>
+                {it.caret && <span className="pm-caret">▼</span>}
+                {it.soon && <span className="pm-soon">SOON</span>}
               </button>
-            ) : (
-              <div style={s.menuRowDim}>
-                <span style={s.menuArrowDim}>▷</span>
-                <span style={s.menuInner}>
-                  <span style={s.menuLabelDim}>LOAD</span>
-                  <span style={s.menuSubDim}>// no save data</span>
-                </span>
-              </div>
-            )}
+            );
+          })}
+        </nav>
 
-            <button style={s.menuRowActive} onClick={openSettings}>
-              <span style={s.menuArrow}>▶</span>
-              <span style={s.menuInner}>
-                <span style={s.menuLabel}>SETTINGS</span>
-                <span style={s.menuSub}>// audio, haptics &amp; system</span>
-              </span>
-            </button>
-          </nav>
-
-          <div style={s.bottomRight}>
-            <button style={s.muteBtn} onClick={toggleMute} title={muted ? 'Unmute' : 'Mute'}>
-              {muted ? '✕♪' : '♪'}
-            </button>
-            <span style={s.buildTag}>BUILD 0.1 // HALIMA</span>
-          </div>
+        {/* ══ BOTTOM BAR ══ */}
+        <div style={s.bottomBar}>
+          <button style={s.muteBtn} onClick={toggleMute} title={muted ? 'Unmute' : 'Mute'}>
+            {muted ? '✕♪' : '♪'}
+          </button>
+          <span style={s.buildTag}>BUILD 0.2 // HALIMA</span>
+          {/* Decorative prompts — flavor, not a gamepad promise */}
+          <span style={s.prompts}>
+            <span style={s.promptKey}>A</span> Confirm&nbsp;&nbsp;
+            <span style={{ ...s.promptKey, background: RED }}>B</span> Back
+          </span>
         </div>
       </div>
 
       <style>{`
-        .mm-in { animation: mmFadeIn 0.9s ease forwards; }
-        @keyframes mmFadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to   { opacity: 1; transform: translateY(0); }
+        .pm-pre { opacity: 0; }
+        .pm-in  { animation: pmIn 0.7s cubic-bezier(0.22,1,0.36,1) forwards; }
+        @keyframes pmIn {
+          from { opacity: 0; transform: translateX(-24px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+
+        .pm-item {
+          position: relative;
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          width: fit-content;
+          margin-left: var(--ind);
+          padding: 2px 10px;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          transform: rotate(var(--rot)) skewX(-7deg);
+          transform-origin: left center;  /* grow rightward from the shared left edge */
+          transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1), filter 0.16s;
+          font-family: ${HEAVY};
+          text-transform: uppercase;
+          line-height: 0.82;
+          letter-spacing: 0.005em;
+          user-select: none;
+        }
+        .pm-big  { font-size: clamp(60px, 9.2vw, 118px); }
+        .pm-mid  { font-size: clamp(44px, 6.2vw, 82px); }
+
+        .pm-fill {
+          color: #ffffff;
+          -webkit-text-stroke: 2.5px #000;
+          paint-order: stroke fill;
+          text-shadow:
+            3px 3px 0 #000,
+            -2px -2px 0 #000,
+            2px -2px 0 #000,
+            -2px 2px 0 #000,
+            6px 7px 0 #000,
+            9px 10px 0 rgba(0,0,0,0.4);
+        }
+
+        .pm-item:not(.pm-locked):hover,
+        .pm-item:not(.pm-locked):focus-visible,
+        .pm-item.pm-selected:not(.pm-locked) {
+          transform: rotate(var(--rot)) skewX(-7deg) translateX(8px) scale(1.28);
+          outline: none;
+        }
+        /* highlighting a locked row: a gentle pop, no red, no big scale */
+        .pm-item.pm-selected.pm-locked {
+          transform: rotate(var(--rot)) skewX(-7deg) scale(1.06);
+        }
+        .pm-item:not(.pm-locked):hover .pm-fill,
+        .pm-item:not(.pm-locked):focus-visible .pm-fill,
+        .pm-item.pm-selected:not(.pm-locked) .pm-fill {
+          color: ${RED};
+          text-shadow:
+            3px 3px 0 #000,
+            -2px -2px 0 #000,
+            2px -2px 0 #000,
+            -2px 2px 0 #000,
+            6px 7px 0 #000,
+            0 0 28px ${RED}cc,
+            9px 10px 0 rgba(0,0,0,0.4);
+        }
+        /* A highlighted-but-locked row still reads as focused (brighter), but stays white */
+        .pm-item.pm-selected.pm-locked .pm-fill { color: #ffffff; }
+        .pm-item:not(.pm-locked):active {
+          transform: rotate(var(--rot)) skewX(-7deg) translateX(16px) scale(0.98);
+        }
+
+        .pm-locked { cursor: default; }
+        .pm-locked .pm-fill {
+          color: rgba(255,255,255,0.78);
+          -webkit-text-stroke: 2.5px #000;
+        }
+
+        .pm-caret {
+          font-size: 0.35em;
+          color: ${RED};
+          text-shadow: 2px 2px 0 #000;
+          animation: pmCaret 1.1s ease-in-out infinite;
+        }
+        @keyframes pmCaret {
+          0%, 100% { transform: translateY(0); }
+          50%      { transform: translateY(5px); }
+        }
+
+        .pm-soon {
+          font-family: ${MONO};
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.22em;
+          color: #fff;
+          background: ${TEAL};
+          padding: 3px 8px;
+          transform: rotate(3deg);
+          box-shadow: 2px 2px 0 #000;
         }
       `}</style>
     </div>
@@ -226,330 +277,63 @@ const s = {
     position: 'relative',
     width: '100%',
     minHeight: '100vh',
-    background: BG,
-    display: 'flex',
-    alignItems: 'stretch',
-    opacity: 0,
+    background: '#08090c',
     overflow: 'hidden',
-    fontFamily: MONO,
   },
 
   bgImg: {
     position: 'absolute',
     inset: 0,
-    backgroundImage: `url(${bgImage})`,
     backgroundSize: 'cover',
-    backgroundPosition: 'center',
+    backgroundPosition: 'center right',
     backgroundRepeat: 'no-repeat',
     zIndex: 0,
+    transition: 'transform 0.25s ease-out',
+    willChange: 'transform',
   },
 
-  bgOverlay: {
+  // Keeps the type readable over busy splatter without dulling the art:
+  // a soft dark wash hugging the left edge only.
+  wash: {
     position: 'absolute',
     inset: 0,
-    background: 'linear-gradient(to bottom, rgba(0,0,0,0.75), rgba(0,0,0,0.85))',
+    background: 'linear-gradient(100deg, rgba(0,0,0,0.52) 0%, rgba(0,0,0,0.28) 34%, rgba(0,0,0,0) 58%)',
     zIndex: 1,
-  },
-
-  scanlines: {
-    position: 'absolute',
-    inset: 0,
-    backgroundImage:
-      'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.012) 3px, rgba(255,255,255,0.012) 4px)',
     pointerEvents: 'none',
-    zIndex: 2,
   },
 
   layout: {
     position: 'relative',
-    zIndex: 3,
+    zIndex: 2,
     display: 'flex',
-    width: '100%',
+    flexDirection: 'column',
     minHeight: '100vh',
-  },
-
-  /* ── LEFT ── */
-  left: {
-    flex: '1 1 55%',
-    display: 'flex',
-    flexDirection: 'column',
-    padding: '36px 48px 40px',
-    borderRight: `1px solid rgba(233,69,96,0.25)`,
-  },
-
-  sysTag: {
-    fontFamily: MONO,
-    fontSize: '10px',
-    letterSpacing: '0.2em',
-    color: DIM,
-    marginBottom: '32px',
-  },
-
-  encryptedLabel: {
-    fontFamily: MONO,
-    fontSize: '10px',
-    letterSpacing: '0.18em',
-    color: 'rgba(233,69,96,0.55)',
-    marginBottom: '16px',
-  },
-
-  titleWrap: {
-    display: 'flex',
-    flexDirection: 'column',
-    lineHeight: 1.0,
-    marginBottom: '28px',
-  },
-
-  titleChronicles: {
-    fontFamily: MONO,
-    fontSize: 'clamp(60px, 8vw, 90px)',
-    fontWeight: 700,
-    letterSpacing: '0.05em',
-    color: '#ffffff',
-    lineHeight: 1.0,
-  },
-
-  titleSaga: {
-    fontFamily: MONO,
-    fontSize: 'clamp(60px, 8vw, 90px)',
-    fontWeight: 700,
-    letterSpacing: '0.05em',
-    color: ACCENT,
-    textShadow: `0 0 32px ${ACCENT}77`,
-    lineHeight: 1.0,
-  },
-
-  divider: {
-    width: '56px',
-    height: '2px',
-    background: ACCENT,
-    marginBottom: '32px',
-    boxShadow: `0 0 10px ${ACCENT}66`,
-  },
-
-  quote: {
-    margin: 0,
-    padding: '0 0 0 20px',
-    borderLeft: `2px solid ${ACCENT}44`,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-  },
-
-  quoteLine: {
-    fontFamily: MONO,
-    fontSize: '14px',
-    color: MID,
-    letterSpacing: '0.04em',
-    lineHeight: 1.65,
-  },
-
-  quoteAttrib: {
-    marginTop: '12px',
-    fontFamily: MONO,
-    fontSize: '11px',
-    color: DIM,
-    letterSpacing: '0.1em',
-    fontStyle: 'italic',
-  },
-
-  statusBar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '12px 16px',
-    border: `1px solid rgba(233,69,96,0.18)`,
-    background: 'rgba(0,0,0,0.35)',
-  },
-
-  dot: {
-    display: 'inline-block',
-    width: '7px',
-    height: '7px',
-    borderRadius: '50%',
-    flexShrink: 0,
-    transition: 'opacity 0.3s',
-  },
-
-  statusText: {
-    fontFamily: MONO,
-    fontSize: '10px',
-    letterSpacing: '0.18em',
-    color: ACCENT,
-    marginLeft: '4px',
-  },
-
-  /* ── RIGHT ── */
-  right: {
-    flex: '1 1 45%',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'flex-start',
-    padding: '36px 48px 40px',
-    gap: '28px',
-  },
-
-  topBar: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    marginBottom: '4px',
-  },
-
-  clock: {
-    fontFamily: MONO,
-    fontSize: '12px',
-    letterSpacing: '0.2em',
-    color: MID,
-  },
-
-  sagaCard: {
-    padding: '24px',
-    border: `1px solid ${ACCENT}`,
-    background: 'rgba(0,0,0,0.45)',
-    boxShadow: `inset 0 0 32px rgba(233,69,96,0.04), 0 0 0 1px rgba(233,69,96,0.12)`,
-  },
-
-  sagaLabel: {
-    fontFamily: MONO,
-    fontSize: '10px',
-    letterSpacing: '0.25em',
-    color: ACCENT,
-    marginBottom: '10px',
-  },
-
-  sagaTitle: {
-    fontFamily: MONO,
-    fontSize: 'clamp(18px, 2.5vw, 24px)',
-    fontWeight: 700,
-    color: '#ffffff',
-    letterSpacing: '0.06em',
-    marginBottom: '10px',
-  },
-
-  sagaMeta: {
-    display: 'flex',
-    gap: '20px',
-    marginBottom: '16px',
-  },
-
-  sagaMetaItem: {
-    fontFamily: MONO,
-    fontSize: '10px',
-    letterSpacing: '0.15em',
-    color: DIM,
-  },
-
-  sagaDesc: {
-    fontFamily: MONO,
-    fontSize: '12px',
-    color: MID,
-    lineHeight: 1.7,
-    letterSpacing: '0.03em',
-    margin: 0,
-    paddingTop: '12px',
-    borderTop: '1px solid rgba(255,255,255,0.07)',
+    padding: '9vh 0 0 5vw',
   },
 
   menu: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px',
-  },
-
-  menuRowActive: {
-    display: 'flex',
+    gap: '2.8vh',
     alignItems: 'flex-start',
-    gap: '14px',
-    padding: '14px 20px',
-    fontFamily: MONO,
-    color: '#ffffff',
-    background: 'rgba(233,69,96,0.14)',
-    border: `1px solid ${ACCENT}`,
-    cursor: 'pointer',
-    textAlign: 'left',
-    transition: 'background 0.15s, box-shadow 0.15s',
-    width: '100%',
   },
 
-  menuArrow: {
-    color: ACCENT,
-    fontSize: '10px',
-    paddingTop: '3px',
-    flexShrink: 0,
-  },
-
-  menuRowDim: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '14px',
-    padding: '14px 20px',
-    fontFamily: MONO,
-    color: DIM,
-    border: '1px solid rgba(255,255,255,0.06)',
-    background: 'rgba(0,0,0,0.25)',
-    cursor: 'default',
-    userSelect: 'none',
-  },
-
-  menuArrowDim: {
-    color: DIM,
-    fontSize: '10px',
-    paddingTop: '3px',
-    flexShrink: 0,
-  },
-
-  menuInner: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-  },
-
-  menuLabel: {
-    fontSize: '13px',
-    fontWeight: 700,
-    letterSpacing: '0.2em',
-    color: '#ffffff',
-  },
-
-  menuSub: {
-    fontSize: '10px',
-    letterSpacing: '0.1em',
-    color: 'rgba(233,69,96,0.65)',
-    fontWeight: 400,
-  },
-
-  menuLabelDim: {
-    fontSize: '13px',
-    fontWeight: 400,
-    letterSpacing: '0.2em',
-    color: DIM,
-  },
-
-  menuSubDim: {
-    fontSize: '10px',
-    letterSpacing: '0.1em',
-    color: 'rgba(255,255,255,0.12)',
-    fontWeight: 400,
-  },
-
-  bottomRight: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    gap: '8px',
+  bottomBar: {
     marginTop: 'auto',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '18px',
+    padding: '0 28px 18px 4px',
   },
 
   muteBtn: {
     fontFamily: MONO,
-    fontSize: '14px',
-    color: DIM,
-    background: 'transparent',
-    border: 'none',
+    fontSize: '15px',
+    color: 'rgba(255,255,255,0.7)',
+    background: 'rgba(0,0,0,0.45)',
+    border: '1px solid rgba(255,255,255,0.2)',
     cursor: 'pointer',
-    padding: '4px 6px',
-    letterSpacing: '0.05em',
-    transition: 'color 0.15s',
+    padding: '5px 9px',
     lineHeight: 1,
   },
 
@@ -557,6 +341,32 @@ const s = {
     fontFamily: MONO,
     fontSize: '10px',
     letterSpacing: '0.15em',
-    color: DIM,
+    color: 'rgba(255,255,255,0.45)',
+    textShadow: '1px 1px 0 #000',
+  },
+
+  prompts: {
+    marginLeft: 'auto',
+    fontFamily: MONO,
+    fontSize: '12px',
+    fontWeight: 700,
+    color: '#fff',
+    textShadow: '1px 1px 0 #000',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+
+  promptKey: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '20px',
+    height: '20px',
+    borderRadius: '50%',
+    background: '#1d9e3f',
+    color: '#fff',
+    fontSize: '11px',
+    boxShadow: '1px 1px 0 #000',
   },
 };

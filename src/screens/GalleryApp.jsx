@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useGame } from '../context/GameContext';
+import { useEngine } from '../context/EngineContext';
 import { playClick } from '../utils/sound';
 
 const SYS = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif';
@@ -68,8 +69,14 @@ function PhotoDetail({ photo, onClose }) {
 // ─── Main screen ────────────────────────────────────────────────────────────
 export default function GalleryApp() {
   const { state, setApp }         = useGame();
+  const engine                    = useEngine();
   const photos                    = usePhotoEntries(state.messageThreads);
   const [expanded, setExpanded]   = useState(null);
+
+  // Active beat drives reader-paced advancement inside the gallery.
+  const beat           = engine?.beatMap?.[state.currentBeat];
+  const continueTarget = beat?.continue ?? null;             // single forward step → "Next"
+  const choices        = beat?.player_choices ?? [];          // real decisions → choice list
 
   if (expanded !== null && photos[expanded]) {
     return <PhotoDetail photo={photos[expanded]} onClose={() => setExpanded(null)} />;
@@ -78,6 +85,14 @@ export default function GalleryApp() {
   return (
     <div style={s.root}>
       <StatusBar />
+
+      {/* Reader-paced advancement overlay (narration shows in the side panel) */}
+      <GalleryAdvance
+        continueTarget={continueTarget}
+        choices={choices}
+        onNext={() => { playClick(); engine?.advanceBeat(continueTarget); }}
+        onChoice={(c) => { playClick(); engine?.resolveChoice(c); }}
+      />
 
       {/* iOS Photos-style header */}
       <div style={s.header}>
@@ -118,6 +133,43 @@ export default function GalleryApp() {
       )}
     </div>
   );
+}
+
+// ─── Reader-paced advancement (Next / choices), gallery-local ────────────────
+// A "Next" step (beat.continue) is deliberately styled NOTHING like a dialogue
+// choice — it's a quiet floating pill, so it reads as "continue" rather than
+// "decide". Real player_choices fall back to a labelled list.
+function GalleryAdvance({ continueTarget, choices, onNext, onChoice }) {
+  if (continueTarget) {
+    return (
+      <>
+        <button style={s.nextPill} onClick={onNext} aria-label="Next">
+          <span style={s.nextLabel}>Next</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 6l6 6-6 6"/>
+          </svg>
+        </button>
+        <style>{`
+          @keyframes galNextIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        `}</style>
+      </>
+    );
+  }
+
+  if (choices.length > 0) {
+    return (
+      <div style={s.choiceWrap}>
+        {choices.map((c, i) => (
+          <button key={i} style={s.choiceBtn} onClick={() => onChoice(c)}>
+            {c.label}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function PhotoTile({ photo, onClick }) {
@@ -238,4 +290,60 @@ const s = {
   detailCaption: { fontSize:'15px', color:'#8E8E93', padding:'12px 20px', margin:0, textAlign:'center' },
   detailFooter:  { padding:'12px 20px 20px', borderTop:'1px solid rgba(84,84,88,0.3)', flexShrink:0 },
   detailDate:    { fontSize:'13px', color:'#8E8E93' },
+
+  // Reader-paced "Next" — a quiet floating pill, intentionally distinct from
+  // the bordered dialogue-choice rows used elsewhere.
+  nextPill: {
+    position:       'absolute',
+    bottom:         '26px',
+    right:          '18px',
+    zIndex:         30,
+    display:        'flex',
+    alignItems:     'center',
+    gap:            '5px',
+    padding:        '9px 16px',
+    borderRadius:   '999px',
+    border:         '1px solid rgba(255,255,255,0.16)',
+    background:     'rgba(20,20,24,0.62)',
+    backdropFilter: 'blur(14px)',
+    WebkitBackdropFilter: 'blur(14px)',
+    color:          'rgba(255,255,255,0.92)',
+    cursor:         'pointer',
+    boxShadow:      '0 6px 20px rgba(0,0,0,0.45)',
+    animation:      'galNextIn 0.45s ease both',
+    fontFamily:     SYS,
+  },
+  nextLabel: {
+    fontSize:      '14px',
+    fontWeight:    '600',
+    letterSpacing: '0.02em',
+  },
+
+  // Real decisions (e.g. the recording's replay/keep-playing fork) — a labelled
+  // list, clearly a choice, not a "Next".
+  choiceWrap: {
+    position:       'absolute',
+    left:           '16px',
+    right:          '16px',
+    bottom:         '24px',
+    zIndex:         30,
+    display:        'flex',
+    flexDirection:  'column',
+    gap:            '8px',
+  },
+  choiceBtn: {
+    width:          '100%',
+    padding:        '13px 16px',
+    borderRadius:   '13px',
+    border:         '1px solid rgba(10,132,255,0.55)',
+    background:     'rgba(10,132,255,0.14)',
+    backdropFilter: 'blur(14px)',
+    WebkitBackdropFilter: 'blur(14px)',
+    color:          '#fff',
+    fontSize:       '14px',
+    fontWeight:     '500',
+    textAlign:      'left',
+    cursor:         'pointer',
+    fontFamily:     SYS,
+  },
 };

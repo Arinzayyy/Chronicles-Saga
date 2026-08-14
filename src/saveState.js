@@ -176,6 +176,33 @@ export function getAllSlots() {
   return SLOT_IDS.map(getSlotMeta);
 }
 
+/**
+ * The viewerIdentity from the most recently saved slot, or null if there are
+ * no saves yet. Lets the main menu show the player's chosen viewer as its key
+ * art (falling back to the default before any viewer has been chosen).
+ */
+export function getLastViewerIdentity() {
+  migrateLegacySave();
+  let best = null;
+  let bestAt = -1;
+  for (const slotId of SLOT_IDS) {
+    try {
+      const raw = localStorage.getItem(slotKey(slotId));
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (!parsed || parsed.version !== SAVE_VERSION || !parsed.state) continue;
+      const at = typeof parsed.savedAt === 'number' ? parsed.savedAt : 0;
+      if (at >= bestAt && parsed.state.viewerIdentity) {
+        bestAt = at;
+        best = parsed.state.viewerIdentity;
+      }
+    } catch {
+      /* no-op */
+    }
+  }
+  return best;
+}
+
 /** Delete a slot's save data. */
 export function clearSlot(slotId) {
   if (!SLOT_IDS.includes(slotId)) return;

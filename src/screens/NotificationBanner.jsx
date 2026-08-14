@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useGame } from '../context/GameContext';
 import storyData from '../data/story.json';
+import { PHONE } from './phoneTheme';
 
 const SYS = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif';
 
@@ -13,6 +14,14 @@ const CHAR_NAMES = {
 
 function displayName(id) {
   return CHAR_NAMES[id] ?? id.replace('char_', '').replace(/^./, c => c.toUpperCase());
+}
+
+// How long a banner stays on screen, based on how much there is to read.
+// A bare title ("Halima 🔔") clears quickly; a full DM preview lingers long
+// enough to actually read it. Clamped so nothing flashes or overstays.
+function bannerDwell(title, subtitle) {
+  const words = `${title ?? ''} ${subtitle ?? ''}`.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(2400, Math.min(6000, 1200 + words * 320));
 }
 
 export default function NotificationBanner() {
@@ -45,8 +54,10 @@ export default function NotificationBanner() {
         if (seenIds.current.has(msg.id)) continue;
         seenIds.current.add(msg.id);
 
-        // Skip player, system, and ghost messages
-        if (msg.sender === 'player' || msg.isSystem || msg.isGhost) continue;
+        // Skip player, system, ghost, and pre-seeded backlog messages.
+        // Backlog messages were already waiting on the phone — they shouldn't
+        // pop a "new message" banner.
+        if (msg.sender === 'player' || msg.isSystem || msg.isGhost || msg.isBacklog) continue;
 
         // Suppress if the user is anywhere in the SMS app:
         //   • on the thread list  → all threads are visible, no banner needed
@@ -58,7 +69,7 @@ export default function NotificationBanner() {
 
         const meta        = state.threads?.[threadId];
         const isGroup     = meta?.isGroup ?? false;
-        const groupName   = isGroup ? (meta?.name ?? 'Group') : null;
+        const groupName   = isGroup ? (meta?.name ?? 'NOT A CULT') : null;
         const senderName  = displayName(msg.sender);
         const title       = isGroup ? groupName : senderName;
         const subtitle    = isGroup ? `${senderName}: ${msg.isPhoto ? '📷 Photo' : msg.body.split('\n')[0]}`
@@ -71,6 +82,18 @@ export default function NotificationBanner() {
     if (newNotifs.length > 0) setQueue(q => [...q, ...newNotifs]);
   }, [state.messageThreads]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Engine-driven title-only notifications (notify directive → __notify__ flag)
+  const lastNotifyTs = useRef(0);
+  useEffect(() => {
+    const n = state.flags?.__notify__;
+    if (!n || n.ts === lastNotifyTs.current) return;
+    lastNotifyTs.current = n.ts;
+    // On the lock screen these are rendered as a notification stack with a
+    // count, so don't also slide them in as banners.
+    if (state.currentApp === 'lockscreen') return;
+    setQueue(q => [...q, { id: `flagnotif_${n.ts}`, threadId: null, title: n.title, subtitle: n.body ?? '', dwell: n.duration ?? null }]);
+  }, [state.flags?.__notify__]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Drain queue one notification at a time
   useEffect(() => {
     if (current || queue.length === 0) return;
@@ -82,7 +105,7 @@ export default function NotificationBanner() {
     // Small delay so the element mounts before we flip visible → slide in
     requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
 
-    dismissTimer.current = setTimeout(dismiss, 4500);
+    dismissTimer.current = setTimeout(dismiss, next.dwell ?? bannerDwell(next.title, next.subtitle));
   }, [queue, current]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function dismiss() {
@@ -110,7 +133,7 @@ export default function NotificationBanner() {
         aria-label={`New message from ${current.title}`}
         style={{
           ...s.banner,
-          transform: visible ? 'translateY(0)' : 'translateY(-130%)',
+          transform: visible ? 'skewX(-5deg) translateY(0)' : 'skewX(-5deg) translateY(-150%)',
         }}
         onClick={handleTap}
       >
@@ -147,7 +170,7 @@ const s = {
     zIndex:        25,
     display:       'flex',
     justifyContent:'center',
-    padding:       '54px 10px 0',
+    padding:       '40px 10px 0',
     pointerEvents: 'none',   // pass-through except on banner itself
   },
 
@@ -157,31 +180,31 @@ const s = {
     gap:                  '10px',
     width:                '100%',
     maxWidth:             '100%',
-    background:           'rgba(28,28,30,0.94)',
-    backdropFilter:       'blur(24px)',
-    WebkitBackdropFilter: 'blur(24px)',
-    border:               '1px solid rgba(255,255,255,0.10)',
-    borderRadius:         '14px',
+    background:           'rgba(10,10,14,0.92)',
+    backdropFilter:       'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+    borderLeft:           `4px solid ${PHONE.RED}`,
+    borderRadius:         PHONE.RADIUS_PANEL,
     padding:              '11px 14px 12px',
-    boxShadow:            '0 10px 40px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35)',
+    boxShadow:            '5px 6px 0 rgba(0,0,0,0.6), 0 0 22px rgba(211,19,46,0.25)',
     cursor:               'pointer',
     pointerEvents:        'auto',
-    transition:           'transform 0.42s cubic-bezier(0.22, 1, 0.36, 1)',
+    transition:           'transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1)',
     userSelect:           'none',
     fontFamily:           SYS,
   },
 
-  // Green Messages squircle
+  // Red angular app chip
   icon: {
-    width:          36,
-    height:         36,
-    borderRadius:   '9px',
-    background:     'linear-gradient(145deg, #30d158 0%, #25a244 100%)',
+    width:          34,
+    height:         34,
+    borderRadius:   '4px',
+    background:     PHONE.RED,
+    boxShadow:      'inset 0 0 0 1.5px #000',
     display:        'flex',
     alignItems:     'center',
     justifyContent: 'center',
     flexShrink:     0,
-    boxShadow:      '0 2px 6px rgba(0,0,0,0.3)',
   },
 
   body: {
@@ -197,10 +220,12 @@ const s = {
   },
 
   appName: {
-    fontSize:   '12px',
-    fontWeight: '500',
-    color:      'rgba(255,255,255,0.45)',
-    letterSpacing: '0.01em',
+    fontFamily:    PHONE.MONO,
+    fontSize:      '10px',
+    fontWeight:    600,
+    color:         PHONE.RED,
+    letterSpacing: '0.18em',
+    textTransform: 'uppercase',
   },
 
   time: {
@@ -209,12 +234,14 @@ const s = {
   },
 
   title: {
-    margin:     '0 0 1px',
-    fontSize:   '14px',
-    fontWeight: '600',
-    color:      '#fff',
-    overflow:   'hidden',
-    whiteSpace: 'nowrap',
+    margin:       '0 0 1px',
+    fontFamily:   PHONE.COND,
+    fontSize:     '15px',
+    fontWeight:   700,
+    color:        '#fff',
+    letterSpacing:'0.02em',
+    overflow:     'hidden',
+    whiteSpace:   'nowrap',
     textOverflow: 'ellipsis',
   },
 

@@ -11,10 +11,15 @@ import ch1 from '../assets/viewer_select/CH1.png';
 import ch2 from '../assets/viewer_select/CH2.png';
 import ch3 from '../assets/viewer_select/CH3.png';
 import ch4 from '../assets/viewer_select/CH4.png';
+import { PHONE } from './phoneTheme';
 
 const CHAR_IMAGES = { Dara: ch1, Zael: ch2, Seun: ch3, Fox: ch4 };
 
-const MONO = '"SF Mono", "Fira Code", "Courier New", monospace';
+const MONO   = PHONE.MONO;
+const HEAVY  = PHONE.HEAVY;
+const COND   = PHONE.COND;
+const RED    = PHONE.RED;
+const TEAL   = PHONE.TEAL;
 
 const SYS = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif';
 
@@ -36,8 +41,8 @@ const DEFAULT_SECTIONS = [
     key:  'system',
     title:'',  // no header for first group after profile
     rows: [
-      { key:'notifications', label:'Notifications',   value:'On',  icon:'🔔', iconBg:'#FF3B30' },
-      { key:'sounds',        label:'Sounds & Haptics', value:'On', icon:'🔊', iconBg:'#FF3B30' },
+      { key:'notifications', label:'Notifications',   value:'On',  icon:'🔔', iconBg:'#d3132e' },
+      { key:'sounds',        label:'Sounds & Haptics', value:'On', icon:'🔊', iconBg:'#d3132e' },
     ],
   },
 ];
@@ -123,7 +128,7 @@ export default function SettingsApp() {
       <StatusBar />
       <div style={s.header}>
         <button style={s.backBtn} onClick={() => { playClick(); setApp(null); }} aria-label="Back">
-          <svg width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="#0A84FF"
+          <svg width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="#d3132e"
             strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M7.5 1L1 8l6.5 7"/>
           </svg>
@@ -143,7 +148,7 @@ export default function SettingsApp() {
           </div>
           <div style={s.profileInfo}>
             <p style={s.profileName}>{state.viewerIdentity ?? 'Viewer'}</p>
-            <p style={s.profileSub}>Apple ID, iCloud, Media &amp; Purchases</p>
+            <p style={s.profileSub}>VIEWER PROFILE · IDENTITY UNVERIFIED</p>
           </div>
           <svg width="7" height="12" viewBox="0 0 7 12" fill="none" stroke="rgba(84,84,88,0.8)"
             strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -249,7 +254,7 @@ function SoundsRowGroup({
         )}
         <span style={s.rowLabel}>{row.label}</span>
         <div style={s.rowRight}>
-          <span style={{ ...s.rowValue, color: muted ? '#FF3B30' : '#0A84FF' }}>
+          <span style={{ ...s.rowValue, color: muted ? '#d3132e' : '#d3132e' }}>
             {row.value}
           </span>
           {/* Chevron rotates when open (down). */}
@@ -292,7 +297,7 @@ function SoundsRowGroup({
                 style={{
                   ...s.soundsSlider,
                   opacity: muted ? 0.4 : 1,
-                  background: `linear-gradient(to right, #0A84FF 0%, #0A84FF ${volumePct}%, rgba(84,84,88,0.55) ${volumePct}%, rgba(84,84,88,0.55) 100%)`,
+                  background: `linear-gradient(to right, #d3132e 0%, #d3132e ${volumePct}%, rgba(84,84,88,0.55) ${volumePct}%, rgba(84,84,88,0.55) 100%)`,
                 }}
               />
               <span style={s.soundsSliderIconLg}>🔊</span>
@@ -309,7 +314,7 @@ function SoundsRowGroup({
               <span
                 style={{
                   ...s.soundsSwitch,
-                  background: muted ? '#30D158' : 'rgba(120,120,128,0.32)',
+                  background: muted ? RED : 'rgba(120,120,128,0.32)',
                 }}
                 aria-hidden="true"
               >
@@ -331,20 +336,20 @@ function SoundsRowGroup({
             input[type="range"].sa-slider::-webkit-slider-thumb {
               -webkit-appearance: none;
               appearance: none;
-              width: 20px; height: 20px;
-              background: #ffffff;
-              border-radius: 50%;
-              box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+              width: 18px; height: 18px;
+              background: #d3132e;
+              border-radius: 2px;
+              border: 2px solid #000;
+              box-shadow: 0 0 8px rgba(211,19,46,0.7);
               cursor: pointer;
-              border: none;
             }
             input[type="range"].sa-slider::-moz-range-thumb {
-              width: 20px; height: 20px;
-              background: #ffffff;
-              border-radius: 50%;
-              box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+              width: 18px; height: 18px;
+              background: #d3132e;
+              border-radius: 2px;
+              border: 2px solid #000;
+              box-shadow: 0 0 8px rgba(211,19,46,0.7);
               cursor: pointer;
-              border: none;
             }
           `}</style>
         </div>
@@ -378,7 +383,7 @@ function SettingRow({ row, isLast }) {
       {/* Value + chevron */}
       <div style={s.rowRight}>
         {row.value !== '' && (
-          <span style={{ ...s.rowValue, color: row.mutated ? '#0A84FF' : '#8E8E93' }}>
+          <span style={{ ...s.rowValue, color: row.mutated ? '#d3132e' : '#8E8E93' }}>
             {row.value}
           </span>
         )}
@@ -440,7 +445,7 @@ function LoadRow({ onOpen }) {
       style={{
         ...s.row,
         borderBottom: '1px solid rgba(84,84,88,0.35)',
-        background: hov ? 'rgba(10,132,255,0.06)' : 'transparent',
+        background: hov ? 'rgba(25,184,180,0.06)' : 'transparent',
       }}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
@@ -449,7 +454,7 @@ function LoadRow({ onOpen }) {
       <div style={s.loadIconWrap}>
         {/* Folder-open icon */}
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-          stroke="rgba(10,132,255,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          stroke="rgba(25,184,180,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
         </svg>
       </div>
@@ -549,7 +554,11 @@ const s = {
     background:'none', border:'none', cursor:'pointer',
     display:'flex', alignItems:'center', padding:'4px', minWidth:40,
   },
-  headerTitle: { fontSize:'17px', fontWeight:'600', color:'#fff' },
+  headerTitle: {
+    fontFamily:HEAVY, fontSize:'22px', color:'#fff', textTransform:'uppercase',
+    transform:PHONE.SKEW, letterSpacing:'0.04em',
+    WebkitTextStroke:'1.2px #000', paintOrder:'stroke fill', textShadow:'2px 2px 0 #000',
+  },
 
   scroll: { flex:1, overflowY:'auto', padding:'0 0 40px' },
 
@@ -557,55 +566,60 @@ const s = {
   profileCard: {
     display:'flex', alignItems:'center', gap:'14px',
     padding:'14px 16px',
-    background:'#1C1C1E', margin:'16px 16px 4px',
-    borderRadius:'10px', cursor:'pointer',
+    background:'rgba(20,20,26,0.9)', margin:'16px 16px 4px',
+    borderRadius:'4px', cursor:'pointer',
+    borderLeft:`4px solid ${RED}`,
   },
   profileAvatar: {
-    width:56, height:56, borderRadius:'50%',
-    background:'linear-gradient(135deg, #5856D6, #0A84FF)',
+    width:56, height:56, borderRadius:'4px',
+    background:'linear-gradient(150deg, #20202a, #0b0b0f)',
+    boxShadow:`inset 0 0 0 2px ${RED}`,
     display:'flex', alignItems:'center', justifyContent:'center',
-    flexShrink:0,
+    flexShrink:0, overflow:'hidden',
   },
-  profileAvatarText: { fontSize:'24px', fontWeight:'600', color:'#fff' },
+  profileAvatarText: { fontFamily:HEAVY, fontSize:'26px', color:'#fff', transform:PHONE.SKEW },
   profileAvatarImg: {
-    width:'100%', height:'100%', borderRadius:'50%',
+    width:'100%', height:'100%', borderRadius:'2px',
     objectFit:'cover', objectPosition:'center top', display:'block',
   },
   profileInfo: { flex:1, minWidth:0 },
-  profileName: { fontSize:'20px', fontWeight:'400', color:'#fff', margin:0 },
-  profileSub:  { fontSize:'12px', color:'#8E8E93', margin:'2px 0 0', lineHeight:1.3 },
+  profileName: {
+    fontFamily:HEAVY, fontSize:'26px', color:'#fff', margin:0,
+    textTransform:'uppercase', transform:PHONE.SKEW, transformOrigin:'left center',
+    WebkitTextStroke:'1.5px #000', paintOrder:'stroke fill', letterSpacing:'0.02em',
+  },
+  profileSub:  { fontFamily:MONO, fontSize:'10px', color:'rgba(255,255,255,0.45)', margin:'6px 0 0', letterSpacing:'0.14em' },
 
   // Section
   section:       { margin:'16px 16px 0' },
-  sectionCard:   { background:'#1C1C1E', borderRadius:'10px', overflow:'hidden' },
+  sectionCard:   { background:'rgba(12,12,16,0.78)', borderRadius:'4px', overflow:'hidden', border:'1px solid rgba(255,255,255,0.06)' },
   sectionHeader: {
-    fontSize:'12px', fontWeight:'400', letterSpacing:'0.06em',
-    color:'rgba(84,84,88,0.9)', textTransform:'uppercase',
-    margin:'0 0 6px 4px', padding:0, fontFamily:SYS,
+    fontFamily:MONO, fontSize:'10px', fontWeight:400, letterSpacing:'0.22em',
+    color:'rgba(255,255,255,0.4)', textTransform:'uppercase',
+    margin:'0 0 6px 4px', padding:0,
   },
 
   row: {
     display:'flex', alignItems:'center', gap:'12px',
-    padding:'12px 14px', cursor:'pointer', transition:'background 0.1s',
+    padding:'13px 14px', cursor:'pointer', transition:'background 0.1s',
   },
   rowIcon: {
-    width:28, height:28, borderRadius:'7px',
+    width:28, height:28, borderRadius:'4px',
     display:'flex', alignItems:'center', justifyContent:'center',
-    flexShrink:0,
+    flexShrink:0, boxShadow:'inset 0 0 0 1.5px #000',
   },
-  rowLabel: { flex:1, fontSize:'16px', color:'#fff' },
+  rowLabel: { flex:1, fontFamily:COND, fontSize:'17px', fontWeight:600, color:'#fff', letterSpacing:'0.02em', textTransform:'uppercase' },
   rowRight:  { display:'flex', alignItems:'center', gap:'6px' },
-  rowValue:  { fontSize:'16px', transition:'color 0.2s' },
+  rowValue:  { fontFamily:MONO, fontSize:'13px', letterSpacing:'0.06em', transition:'color 0.2s' },
 
   version: {
-    textAlign:'center', fontSize:'12px',
-    color:'rgba(84,84,88,0.7)', padding:'28px 0 0',
-    fontFamily:SYS,
+    textAlign:'center', fontFamily:MONO, fontSize:'10px',
+    color:'rgba(255,255,255,0.3)', padding:'28px 0 0', letterSpacing:'0.16em',
   },
 
   // Save Game row
   saveIconWrap: {
-    width:28, height:28, borderRadius:'7px',
+    width:28, height:28, borderRadius:'4px',
     display:'flex', alignItems:'center', justifyContent:'center',
     flexShrink:0, transition:'background 0.2s',
   },
@@ -617,20 +631,20 @@ const s = {
 
   // Load Game row
   loadIconWrap: {
-    width:28, height:28, borderRadius:'7px',
-    background:'rgba(10,132,255,0.15)',
+    width:28, height:28, borderRadius:'4px',
+    background:'rgba(25,184,180,0.15)',
     display:'flex', alignItems:'center', justifyContent:'center',
     flexShrink:0,
   },
-  loadLabel: { fontSize:'16px', lineHeight:1, color:'rgba(10,132,255,0.95)' },
+  loadLabel: { fontSize:'16px', lineHeight:1, color:'rgba(25,184,180,0.95)' },
   loadSub: {
-    fontSize:'10px', color:'rgba(10,132,255,0.45)',
+    fontSize:'10px', color:'rgba(25,184,180,0.45)',
     fontFamily:MONO, letterSpacing:'0.06em',
   },
 
   // Return to Main Menu row
   returnIconWrap: {
-    width:28, height:28, borderRadius:'7px',
+    width:28, height:28, borderRadius:'4px',
     background:'rgba(233,69,96,0.15)',
     display:'flex', alignItems:'center', justifyContent:'center',
     flexShrink:0,
@@ -698,8 +712,9 @@ const s = {
     position: 'relative',
     display: 'inline-block',
     width: '44px',
-    height: '26px',
-    borderRadius: '13px',
+    height: '24px',
+    borderRadius: '3px',
+    border: '2px solid #000',
     transition: 'background 0.2s',
     flexShrink: 0,
   },
@@ -707,11 +722,11 @@ const s = {
     position: 'absolute',
     top: '2px',
     left: 0,
-    width: '22px',
-    height: '22px',
-    borderRadius: '50%',
+    width: '18px',
+    height: '16px',
+    borderRadius: '2px',
     background: '#ffffff',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+    boxShadow: '1px 1px 0 rgba(0,0,0,0.5)',
     transition: 'transform 0.2s',
   },
 

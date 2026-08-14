@@ -10,11 +10,13 @@ import PhoneShell      from './screens/PhoneShell';
 import PhoneHome       from './screens/PhoneHome';
 import SMSApp          from './screens/SMSApp';
 import GalleryApp      from './screens/GalleryApp';
+import SceneViewer     from './screens/SceneViewer';
 import SettingsApp     from './screens/SettingsApp';
 import ComputerHome    from './screens/ComputerHome';
 import EmailApp        from './screens/EmailApp';
 import FilesApp        from './screens/FilesApp';
 import Terminal            from './screens/Terminal';
+import NarrationOverlay from './screens/NarrationOverlay';
 import './App.css';
 
 // ─── Fade-in wrapper ──────────────────────────────────────────────────────────
@@ -112,9 +114,10 @@ function GameRouter() {
       return (
         <FadeIn key="phone-context">
           <PhoneShell>
-            {!currentApp               && <PhoneHome />}
+            {(!currentApp || currentApp === 'lockscreen') && <PhoneHome />}
             {currentApp === 'sms'      && <SMSApp />}
             {currentApp === 'gallery'  && <GalleryApp />}
+            {currentApp === 'viewer'   && <SceneViewer />}
             {currentApp === 'settings' && <SettingsApp />}
           </PhoneShell>
         </FadeIn>
@@ -140,6 +143,7 @@ export default function App() {
       <EngineProvider>
         <AudioManager />
         <GameRouter />
+        <NarrationOverlay />
       </EngineProvider>
     </GameProvider>
   );

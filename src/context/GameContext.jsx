@@ -35,6 +35,9 @@ const initialState = {
   // { threadId: { id, isGroup, members: string[] } }
   threads: {},
 
+  // { threadId: timestamp } — story-driven "bump to top of inbox" (Ch 8 dead thread)
+  threadBumps: {},
+
   unlockedApps: ['sms', 'gallery', 'settings'],
   unlockedComputerApps: [],
 
@@ -53,6 +56,9 @@ const initialState = {
 
   flags: {},
 
+  // Narration overlay lines for the current beat: [{ id, body, rogue }]
+  narration: [],
+
   // Ordered log of executed beat ids
   beatHistory: [],
 };
@@ -62,6 +68,11 @@ function reducer(state, action) {
 
     case 'START_GAME':
       return { ...state, gamePhase: 'playing', currentBeat: action.beatId ?? null };
+
+    // Full reset to a fresh run. Fixes the bug where "New Game" kept the old
+    // run's messages, trust, identity, and beatHistory in memory.
+    case 'RESET_GAME':
+      return { ...initialState, gamePhase: 'playing' };
 
     case 'SET_VIEWER_IDENTITY':
       return { ...state, viewerIdentity: action.identity, gamePhase: 'prologue' };
@@ -74,7 +85,12 @@ function reducer(state, action) {
         ...state,
         currentBeat: action.beatId,
         beatHistory: [...state.beatHistory, action.beatId],
+        // Narration is per-beat; a new beat starts a clean slate
+        narration: [],
       };
+
+    case 'PUSH_NARRATION':
+      return { ...state, narration: [...state.narration, action.line] };
 
     case 'SET_CONTEXT':
       return { ...state, currentContext: action.context, currentApp: null };
@@ -199,6 +215,43 @@ function reducer(state, action) {
       };
     }
 
+    case 'REMOVE_FROM_GROUP_THREAD': {
+      const existing = state.threads[action.threadId];
+      if (!existing) return state;
+      if (!existing.members.includes(action.characterId)) return state;
+      return {
+        ...state,
+        threads: {
+          ...state.threads,
+          [action.threadId]: {
+            ...existing,
+            members: existing.members.filter(id => id !== action.characterId),
+          },
+        },
+      };
+    }
+
+    // Story-driven inbox reorder: the bumped thread sorts to the top of the
+    // thread list (Ch 8 — Halima's dead thread moves. Unprompted.)
+    case 'BUMP_THREAD':
+      return {
+        ...state,
+        threadBumps: { ...state.threadBumps, [action.threadId]: Date.now() },
+      };
+
+    // Read receipt on a single player-sent message (Ch 8 dead-thread payoff —
+    // receipts land one by one, seconds apart. Distinct from isRead, which is
+    // the player's own unread-count bookkeeping.)
+    case 'MARK_MESSAGE_RECEIPT': {
+      const thread = (state.messageThreads[action.threadId] ?? []).map(m =>
+        m.id === action.messageId ? { ...m, receiptRead: true } : m,
+      );
+      return {
+        ...state,
+        messageThreads: { ...state.messageThreads, [action.threadId]: thread },
+      };
+    }
+
     // ── Apps / Files / Photos ───────────────────────────────────────────────
 
     case 'UNLOCK_APP':
@@ -245,6 +298,8 @@ function reducer(state, action) {
     case 'LOAD_SAVE':
       return {
         ...action.savedState,
+        // Older saves predate threadBumps — never let it come back undefined
+        threadBumps: action.savedState.threadBumps ?? {},
         typingIndicators: {},
         // Signal EngineContext to resume mid-beat progression after load
         flags: { ...(action.savedState.flags ?? {}), __pendingResume__: true },
@@ -289,7 +344,7 @@ export function GameProvider({ children }) {
   // ── New game helper (wipes autosave; manual slots are preserved) ───────────
   const newGame = useCallback(() => {
     clearSave();
-    dispatch({ type: 'START_GAME' });
+    dispatch({ type: 'RESET_GAME' });
   }, []);
 
   // ── Multi-slot save/load ───────────────────────────────────────────────────
@@ -374,6 +429,18 @@ export function GameProvider({ children }) {
     dispatch({ type: 'ADD_TO_GROUP_THREAD', threadId, characterId });
   }, []);
 
+  const removeFromGroupThread = useCallback((threadId, characterId) => {
+    dispatch({ type: 'REMOVE_FROM_GROUP_THREAD', threadId, characterId });
+  }, []);
+
+  const bumpThread = useCallback((threadId) => {
+    dispatch({ type: 'BUMP_THREAD', threadId });
+  }, []);
+
+  const markMessageReceipt = useCallback((threadId, messageId) => {
+    dispatch({ type: 'MARK_MESSAGE_RECEIPT', threadId, messageId });
+  }, []);
+
   const unlockApp = useCallback((app) => {
     dispatch({ type: 'UNLOCK_APP', app });
   }, []);
@@ -406,6 +473,10 @@ export function GameProvider({ children }) {
     dispatch({ type: 'SET_FLAG', key, value });
   }, []);
 
+  const pushNarration = useCallback((line) => {
+    dispatch({ type: 'PUSH_NARRATION', line });
+  }, []);
+
   return (
     <GameContext.Provider value={{
       state,
@@ -430,6 +501,9 @@ export function GameProvider({ children }) {
       setTypingIndicator,
       createGroupThread,
       addToGroupThread,
+      removeFromGroupThread,
+      bumpThread,
+      markMessageReceipt,
       unlockApp,
       unlockComputerApp,
       unlockPhoto,
@@ -438,6 +512,7 @@ export function GameProvider({ children }) {
       addEmail,
       markEmailRead,
       setFlag,
+      pushNarration,
     }}>
       {children}
     </GameContext.Provider>

@@ -4,7 +4,6 @@ import {
   getAllSlots,
   AUTOSAVE_SLOT_ID,
 } from '../saveState';
-import bgImage from '../assets/main_menu_bg.jpg';
 import { playClick } from '../utils/sound';
 
 // ─── Save Slot Select ────────────────────────────────────────────────────────
@@ -19,11 +18,21 @@ import { playClick } from '../utils/sound';
 //
 // Used by MainMenu ("LOAD") and by the in-game SettingsApp ("SAVE"/"LOAD").
 
-const ACCENT = '#E94560';
+// Persona-style key art for the save screen. Drop a file at
+// src/assets/saves_bg.(jpg|png|webp) and it's picked up automatically; until
+// then we fall back to the menu persona art. Globs never error on missing
+// files, so the build is safe even with no art present.
+const savesImgs    = import.meta.glob('../assets/saves_bg.*',          { eager: true, query: '?url', import: 'default' });
+const fallbackImgs = import.meta.glob('../assets/main_menu_persona.*', { eager: true, query: '?url', import: 'default' });
+const SAVE_BG = Object.values(savesImgs)[0] ?? Object.values(fallbackImgs)[0] ?? null;
+
+const HEAVY  = "'Anton', 'Archivo Black', 'Arial Black', Impact, sans-serif";
 const MONO   = "'Courier New', 'Consolas', 'Liberation Mono', monospace";
-const BG     = '#0a0a0f';
-const DIM    = 'rgba(255,255,255,0.18)';
-const MID    = 'rgba(255,255,255,0.45)';
+const RED     = '#d3132e';
+const TEAL    = '#19b8b4';
+const BG      = '#08090c';
+const DIM     = 'rgba(255,255,255,0.18)';
+const MID     = 'rgba(255,255,255,0.5)';
 
 function formatTimestamp(ms) {
   if (!ms) return '';
@@ -126,14 +135,14 @@ export default function SaveSlotSelect({ mode = 'load', onClose, onLoaded }) {
   return (
     <div style={s.root} className={visible ? 'slot-in' : ''}>
       <div style={s.bgImg} aria-hidden="true" />
-      <div style={s.bgOverlay} aria-hidden="true" />
+      <div style={s.wash} aria-hidden="true" />
       <div style={s.scanlines} aria-hidden="true" />
 
       <div style={s.layout}>
         <div style={s.headerRow}>
           <div>
             <div style={s.crumb}>SYS://CHRONICLES</div>
-            <h1 style={s.title}>
+            <h1 className="save-title" style={s.title}>
               {mode === 'save' ? 'SAVE GAME' : 'LOAD GAME'}
             </h1>
             <div style={s.subtitle}>
@@ -143,27 +152,21 @@ export default function SaveSlotSelect({ mode = 'load', onClose, onLoaded }) {
             </div>
           </div>
 
-          <button style={s.backBtn} onClick={handleBack}>
+          <button className="save-back" style={s.backBtn} onClick={handleBack}>
             ◀ BACK
           </button>
         </div>
-
-        <div style={s.divider} />
 
         <div style={s.slotList}>
           {visibleSlots.map((slot) => {
             // For labels we want autosave at 0, slot_1 at index 1, etc.
             const globalIndex = slots.findIndex(s2 => s2.id === slot.id);
-            const canInteract =
-              mode === 'save' ? true : slot.exists;
+            const canInteract = mode === 'save' ? true : slot.exists;
             return (
               <div key={slot.id} style={s.slotRow}>
                 <button
-                  style={{
-                    ...s.slotMain,
-                    ...(canInteract ? {} : s.slotMainDisabled),
-                    ...(slot.isAutosave ? s.slotMainAutosave : {}),
-                  }}
+                  className={`save-row ${canInteract ? '' : 'is-disabled'} ${slot.isAutosave ? 'is-auto' : ''}`}
+                  style={s.slotMain}
                   onClick={() => {
                     if (!canInteract) return;
                     if (mode === 'save') {
@@ -174,26 +177,25 @@ export default function SaveSlotSelect({ mode = 'load', onClose, onLoaded }) {
                   }}
                   disabled={!canInteract}
                 >
-                  <span style={s.slotArrow}>{canInteract ? '▶' : '▷'}</span>
+                  <span className="save-bar" aria-hidden="true" />
                   <span style={s.slotInner}>
-                    <span style={s.slotLabel}>
+                    <span className="save-label" style={s.slotLabel}>
                       {slotLabel(slot, globalIndex)}
-                      {slot.isAutosave && (
-                        <span style={s.autosaveTag}>· AUTO</span>
-                      )}
+                      {slot.isAutosave && <span style={s.autosaveTag}>AUTO</span>}
                     </span>
                     <span style={s.slotMeta}>
                       {slot.exists
-                        ? `SAVED: ${formatTimestamp(slot.savedAt)}`
+                        ? `SAVED · ${formatTimestamp(slot.savedAt)}`
                         : '// empty'}
                     </span>
                   </span>
+                  {canInteract && <span className="save-go" style={s.slotGo}>▶</span>}
                 </button>
 
-                {/* Delete button — visible in both modes, only if slot has data.
-                    Autosave can be deleted too (useful for wiping a bad run). */}
+                {/* Delete button — visible in both modes, only if slot has data. */}
                 {slot.exists && (
                   <button
+                    className="save-del"
                     style={s.deleteBtn}
                     onClick={() => handleDelete(slot.id, false)}
                     title="Delete this save"
@@ -223,15 +225,14 @@ export default function SaveSlotSelect({ mode = 'load', onClose, onLoaded }) {
               </div>
               <div style={s.confirmRow}>
                 <button
+                  className="save-back"
                   style={s.confirmCancel}
-                  onClick={() => {
-                    playClick();
-                    setConfirm(null);
-                  }}
+                  onClick={() => { playClick(); setConfirm(null); }}
                 >
                   CANCEL
                 </button>
                 <button
+                  className="save-go-btn"
                   style={s.confirmGo}
                   onClick={() => {
                     if (confirm.action === 'overwrite') {
@@ -249,16 +250,42 @@ export default function SaveSlotSelect({ mode = 'load', onClose, onLoaded }) {
         )}
       </div>
 
-      <style>{`
-        .slot-in { animation: slotFadeIn 0.5s ease forwards; }
-        @keyframes slotFadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+      <style>{css}</style>
     </div>
   );
 }
+
+const css = `
+  .slot-in { animation: slotFadeIn 0.5s cubic-bezier(0.22,1,0.36,1) forwards; }
+  @keyframes slotFadeIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .save-row { transition: transform 0.16s cubic-bezier(0.34,1.56,0.64,1), background 0.16s; }
+  .save-row:not(.is-disabled) { cursor: pointer; }
+  .save-row.is-disabled { cursor: not-allowed; }
+
+  .save-row:not(.is-disabled):hover,
+  .save-row:not(.is-disabled):focus-visible {
+    transform: translateX(12px);
+    background: rgba(8,9,12,0.7);
+    outline: none;
+  }
+  .save-row:not(.is-disabled):hover .save-label,
+  .save-row:not(.is-disabled):focus-visible .save-label { color: ${RED}; }
+  .save-row:not(.is-disabled):hover .save-bar,
+  .save-row:not(.is-disabled):focus-visible .save-bar {
+    background: ${RED};
+    box-shadow: 0 0 14px ${RED}cc;
+  }
+  .save-row:not(.is-disabled):hover .save-go,
+  .save-row:not(.is-disabled):focus-visible .save-go { opacity: 1; color: ${RED}; }
+
+  .save-back:hover  { color: #fff; border-color: ${RED}; background: rgba(211,19,46,0.18); }
+  .save-del:hover   { color: ${RED}; border-color: ${RED}; }
+  .save-go-btn:hover { filter: brightness(1.12); }
+`;
 
 const s = {
   root: {
@@ -277,16 +304,20 @@ const s = {
   bgImg: {
     position: 'absolute',
     inset: 0,
-    backgroundImage: `url(${bgImage})`,
+    backgroundImage: SAVE_BG ? `url(${SAVE_BG})` : 'none',
     backgroundSize: 'cover',
-    backgroundPosition: 'center',
+    backgroundPosition: 'center right',
+    backgroundRepeat: 'no-repeat',
     zIndex: 0,
   },
-  bgOverlay: {
+  // Dark wash hugging the left so the slot list stays legible over the art,
+  // while the character on the right stays visible (matches the main menu).
+  wash: {
     position: 'absolute',
     inset: 0,
-    background: 'linear-gradient(to bottom, rgba(0,0,0,0.82), rgba(0,0,0,0.9))',
+    background: 'linear-gradient(100deg, rgba(5,6,9,0.92) 0%, rgba(5,6,9,0.7) 34%, rgba(5,6,9,0.25) 62%, rgba(5,6,9,0) 82%)',
     zIndex: 1,
+    pointerEvents: 'none',
   },
   scanlines: {
     position: 'absolute',
@@ -301,9 +332,8 @@ const s = {
     position: 'relative',
     zIndex: 3,
     width: '100%',
-    maxWidth: '960px',
-    margin: '0 auto',
-    padding: '48px 40px 60px',
+    maxWidth: '640px',
+    padding: '7vh 0 60px 5vw',
     display: 'flex',
     flexDirection: 'column',
   },
@@ -313,32 +343,41 @@ const s = {
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: '20px',
+    marginBottom: '28px',
   },
 
   crumb: {
     fontFamily: MONO,
     fontSize: '10px',
-    letterSpacing: '0.2em',
+    letterSpacing: '0.25em',
     color: DIM,
-    marginBottom: '14px',
+    marginBottom: '8px',
+    textShadow: '1px 1px 0 #000',
   },
 
   title: {
-    fontFamily: MONO,
-    fontSize: 'clamp(28px, 4vw, 42px)',
-    fontWeight: 700,
-    letterSpacing: '0.08em',
+    fontFamily: HEAVY,
+    fontSize: 'clamp(46px, 6.4vw, 88px)',
+    fontWeight: 400,
+    letterSpacing: '0.01em',
+    lineHeight: 0.9,
     margin: 0,
-    color: ACCENT,
-    textShadow: `0 0 24px ${ACCENT}55`,
+    color: '#fff',
+    textTransform: 'uppercase',
+    transform: 'skewX(-7deg) rotate(-2deg)',
+    transformOrigin: 'left center',
+    WebkitTextStroke: '2.5px #000',
+    paintOrder: 'stroke fill',
+    textShadow: `3px 3px 0 #000, 6px 7px 0 #000, 0 0 30px ${RED}77, 9px 10px 0 rgba(0,0,0,0.4)`,
   },
 
   subtitle: {
     fontFamily: MONO,
     fontSize: '11px',
     letterSpacing: '0.2em',
-    color: 'rgba(233,69,96,0.6)',
-    marginTop: '10px',
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: '14px',
+    textShadow: '1px 1px 0 #000',
   },
 
   backBtn: {
@@ -346,25 +385,18 @@ const s = {
     fontSize: '11px',
     letterSpacing: '0.22em',
     color: MID,
-    background: 'rgba(0,0,0,0.35)',
+    background: 'rgba(0,0,0,0.45)',
     border: `1px solid ${DIM}`,
     padding: '10px 16px',
     cursor: 'pointer',
-  },
-
-  divider: {
-    width: '56px',
-    height: '2px',
-    background: ACCENT,
-    marginTop: '24px',
-    marginBottom: '28px',
-    boxShadow: `0 0 10px ${ACCENT}55`,
+    flexShrink: 0,
+    transition: 'color 0.15s, border-color 0.15s, background 0.15s',
   },
 
   slotList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '8px',
+    gap: '10px',
   },
 
   slotRow: {
@@ -378,66 +410,73 @@ const s = {
     display: 'flex',
     alignItems: 'center',
     gap: '16px',
-    padding: '18px 22px',
+    padding: '14px 18px',
     fontFamily: MONO,
     color: '#ffffff',
-    background: 'rgba(233,69,96,0.10)',
-    border: `1px solid ${ACCENT}`,
-    cursor: 'pointer',
+    background: 'rgba(8,9,12,0.5)',
+    backdropFilter: 'blur(2px)',
+    WebkitBackdropFilter: 'blur(2px)',
+    border: 'none',
     textAlign: 'left',
-    transition: 'background 0.15s, box-shadow 0.15s',
-  },
-  slotMainDisabled: {
-    color: DIM,
-    background: 'rgba(0,0,0,0.28)',
-    border: `1px dashed rgba(255,255,255,0.12)`,
-    cursor: 'not-allowed',
-  },
-  slotMainAutosave: {
-    background: 'rgba(77,166,255,0.10)',
-    border: `1px solid rgba(77,166,255,0.55)`,
   },
 
-  slotArrow: {
-    color: ACCENT,
-    fontSize: '11px',
-    flexShrink: 0,
-  },
-
+  // Slanted accent bar on the left of each row (Persona tab feel).
   slotInner: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '6px',
+    gap: '5px',
     flex: 1,
+    minWidth: 0,
   },
 
   slotLabel: {
-    fontSize: '13px',
-    fontWeight: 700,
-    letterSpacing: '0.22em',
+    fontFamily: HEAVY,
+    fontSize: 'clamp(22px, 2.6vw, 34px)',
+    fontWeight: 400,
+    letterSpacing: '0.03em',
     color: '#ffffff',
+    textTransform: 'uppercase',
+    lineHeight: 1,
+    transform: 'skewX(-7deg)',
+    transformOrigin: 'left center',
+    WebkitTextStroke: '1.5px #000',
+    paintOrder: 'stroke fill',
+    textShadow: '2px 2px 0 #000, 4px 5px 0 rgba(0,0,0,0.4)',
+    transition: 'color 0.15s',
   },
 
   autosaveTag: {
-    marginLeft: '10px',
+    marginLeft: '12px',
+    fontFamily: MONO,
     fontSize: '10px',
-    color: '#4da6ff',
+    color: TEAL,
     letterSpacing: '0.2em',
-    fontWeight: 400,
+    WebkitTextStroke: '0',
+    verticalAlign: 'middle',
   },
 
   slotMeta: {
+    fontFamily: MONO,
     fontSize: '10px',
-    letterSpacing: '0.14em',
-    color: 'rgba(255,255,255,0.55)',
+    letterSpacing: '0.16em',
+    color: 'rgba(255,255,255,0.5)',
+    textShadow: '1px 1px 0 #000',
+  },
+
+  slotGo: {
+    fontSize: '13px',
+    color: 'rgba(255,255,255,0.4)',
+    opacity: 0.5,
+    flexShrink: 0,
+    transition: 'opacity 0.15s, color 0.15s',
   },
 
   deleteBtn: {
-    width: '44px',
+    width: '46px',
     fontFamily: MONO,
     fontSize: '14px',
     color: DIM,
-    background: 'rgba(0,0,0,0.35)',
+    background: 'rgba(0,0,0,0.45)',
     border: `1px solid ${DIM}`,
     cursor: 'pointer',
     transition: 'color 0.15s, border-color 0.15s, background 0.15s',
@@ -447,40 +486,48 @@ const s = {
     position: 'fixed',
     bottom: '32px',
     left: '50%',
-    transform: 'translateX(-50%)',
-    padding: '10px 18px',
-    fontFamily: MONO,
-    fontSize: '11px',
-    letterSpacing: '0.22em',
-    color: ACCENT,
-    background: 'rgba(0,0,0,0.88)',
-    border: `1px solid ${ACCENT}`,
+    transform: 'translateX(-50%) skewX(-7deg)',
+    padding: '10px 22px',
+    fontFamily: HEAVY,
+    fontSize: '14px',
+    letterSpacing: '0.14em',
+    color: '#fff',
+    background: RED,
+    border: '2px solid #000',
+    boxShadow: '3px 3px 0 #000',
     zIndex: 10,
+    textTransform: 'uppercase',
   },
 
   confirmBackdrop: {
     position: 'fixed',
     inset: 0,
-    background: 'rgba(0,0,0,0.78)',
+    background: 'rgba(0,0,0,0.8)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 20,
   },
   confirmBox: {
-    width: 'min(420px, 92vw)',
-    padding: '28px 28px 22px',
+    width: 'min(440px, 92vw)',
+    padding: '26px 28px 22px',
     background: BG,
-    border: `1px solid ${ACCENT}`,
-    boxShadow: `0 0 48px rgba(0,0,0,0.6), inset 0 0 32px rgba(233,69,96,0.06)`,
+    border: `2px solid ${RED}`,
+    boxShadow: '6px 6px 0 #000, 0 0 48px rgba(0,0,0,0.6)',
   },
   confirmTitle: {
-    fontFamily: MONO,
-    fontSize: '14px',
-    fontWeight: 700,
-    color: ACCENT,
-    letterSpacing: '0.18em',
-    marginBottom: '12px',
+    fontFamily: HEAVY,
+    fontSize: '24px',
+    fontWeight: 400,
+    color: '#fff',
+    letterSpacing: '0.04em',
+    marginBottom: '14px',
+    textTransform: 'uppercase',
+    transform: 'skewX(-7deg)',
+    transformOrigin: 'left center',
+    WebkitTextStroke: '1.5px #000',
+    paintOrder: 'stroke fill',
+    textShadow: `2px 2px 0 #000, 0 0 22px ${RED}66`,
   },
   confirmBody: {
     fontFamily: MONO,
@@ -499,19 +546,22 @@ const s = {
     fontSize: '11px',
     letterSpacing: '0.2em',
     color: MID,
-    background: 'transparent',
+    background: 'rgba(0,0,0,0.45)',
     border: `1px solid ${DIM}`,
     padding: '10px 18px',
     cursor: 'pointer',
+    transition: 'color 0.15s, border-color 0.15s, background 0.15s',
   },
   confirmGo: {
-    fontFamily: MONO,
-    fontSize: '11px',
-    letterSpacing: '0.2em',
+    fontFamily: HEAVY,
+    fontSize: '13px',
+    letterSpacing: '0.1em',
     color: '#fff',
-    background: ACCENT,
-    border: `1px solid ${ACCENT}`,
-    padding: '10px 18px',
+    background: RED,
+    border: '2px solid #000',
+    boxShadow: '3px 3px 0 #000',
+    padding: '9px 20px',
     cursor: 'pointer',
+    textTransform: 'uppercase',
   },
 };

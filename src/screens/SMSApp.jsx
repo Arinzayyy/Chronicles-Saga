@@ -3,6 +3,7 @@ import { useGame } from '../context/GameContext';
 import { useEngine } from '../context/EngineContext';
 import { playClick } from '../utils/sound';
 import storyData from '../data/story.json';
+import { PHONE } from './phoneTheme';
 
 const SYS  = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif';
 const MONO = '"SF Mono", "Fira Code", "Courier New", monospace';
@@ -34,12 +35,15 @@ function senderColor(id) {
 }
 
 // ─── Thread helpers ───────────────────────────────────────────────────────────
+// A thread is a group if it was created as one. (Don't gate on member count:
+// the group starts with 2 named members + the player and grows over time, so a
+// count check hides sender labels early in the chat.)
 function isGroupThread(threadMeta) {
-  return (threadMeta?.members?.length ?? 0) > 2;
+  return !!threadMeta?.isGroup;
 }
 
 function threadName(threadId, msgs, meta) {
-  if (meta?.isGroup) return 'TEMP-3';
+  if (meta?.isGroup) return meta?.name ?? 'NOT A CULT';
   const other = msgs.find(m => m.sender !== 'player' && !m.isSystem);
   return other ? displayName(other.sender) : 'Unknown';
 }
@@ -65,10 +69,14 @@ function typingDuration(body) {
   return rand(2500, 3500);
 }
 
-// Returns the pause before showing the typing indicator for the next message.
+// Silent pause before the typing indicator appears for the next message.
+// Keep this SHORT — dead air with nothing on screen feels broken. The visible
+// "typing…" indicator (typingDuration) is what should carry the wait, not
+// empty silence. Especially after a player choice (sender change), the dots
+// should come up almost immediately so the reply feels responsive.
 function interPause(lastSender, nextSender) {
   if (lastSender === null) return 0;
-  return lastSender === nextSender ? rand(400, 800) : rand(1000, 2000);
+  return lastSender === nextSender ? rand(220, 450) : rand(380, 700);
 }
 
 // Messages that skip the queue and appear instantly.
@@ -197,11 +205,10 @@ export default function SMSApp() {
     }, pause);
   };
 
-  // ── Fire opening beat once ──────────────────────────────────────────────────
+  // Opening beat now auto-fires from EngineContext (firstBeatId) — no hardcode here.
   useEffect(() => {
     if (didInit.current) return;
     didInit.current = true;
-    if (state.beatHistory.length === 0) engine.loadBeat('beat_s1_001');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Reset choice state when beat advances ───────────────────────────────────
@@ -226,6 +233,24 @@ export default function SMSApp() {
       setFlag('openThread', null);
     }
   }, [state.flags?.openThread]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Doubt composer effect (composer_effect directive) ───────────────────────
+  // 'scramble': the input bar glitches for duration_ms and choices hold back —
+  // whatever you type hesitates before sending. 'clear': the effect lifts
+  // instantly (Root Access — no scramble, no hesitation. You notice.)
+  const composerFx = state.flags?.__composerEffect__;
+  const [scrambleActive, setScrambleActive] = useState(false);
+  useEffect(() => {
+    if (composerFx?.mode === 'scramble') {
+      const remaining = (composerFx.duration_ms ?? 3000) - (Date.now() - (composerFx.ts ?? Date.now()));
+      if (remaining > 0) {
+        setScrambleActive(true);
+        const t = setTimeout(() => setScrambleActive(false), remaining);
+        return () => clearTimeout(t);
+      }
+    }
+    setScrambleActive(false);
+  }, [composerFx?.ts, composerFx?.mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Thread change: cancel pacing, snapshot history as instantly-shown ────────
   useEffect(() => {
@@ -294,11 +319,21 @@ export default function SMSApp() {
     return null;
   })();
 
+  // Don't reveal choices until the NPC has finished talking:
+  //  • the engine has fired every directive for this beat (__beatSettled__), and
+  //  • the local reveal queue is fully drained — no bubbles waiting, not
+  //    mid-reveal, and no typing indicator on screen.
+  const beatReady      = state.flags?.__beatSettled__?.beat === state.currentBeat;
+  const revealSettled  = queueRef.current.length === 0 && !processingRef.current && localTyping === null;
+
   const showChoices = (
     activeThread !== null &&
     pendingChoices.length > 0 &&
     !choiceSelected &&
-    (choiceThread === null || choiceThread === activeThread)
+    (choiceThread === null || choiceThread === activeThread) &&
+    beatReady &&
+    revealSettled &&
+    !scrambleActive
   );
 
   function handleChoiceSelect(choice) {
@@ -324,7 +359,10 @@ export default function SMSApp() {
     engine.resolveChoice(choice);
   }
 
-  // Visible threads (exclude __system__, keep non-empty)
+  // Visible threads (exclude __system__, keep non-empty).
+  // Story-driven bumps (bump_thread directive) float a thread to the top —
+  // the sort is stable, so unbumped threads keep their natural order.
+  const bumps = state.threadBumps ?? {};
   const visibleThreads = Object.entries(state.messageThreads)
     .filter(([id, msgs]) => id !== '__system__' && msgs.some(m => !m.isSystem))
     .map(([id, msgs]) => {
@@ -338,7 +376,8 @@ export default function SMSApp() {
         : '...';
       const time = fmtThreadTime(last?.timestamp);
       return { id, name, preview, unreadCount, time };
-    });
+    })
+    .sort((a, b) => (bumps[b.id] ?? 0) - (bumps[a.id] ?? 0));
 
   // ── Thread list ───────────────────────────────────────────────────────────
   if (!activeThread) {
@@ -348,14 +387,14 @@ export default function SMSApp() {
 
         <div style={s.navBar}>
           <button style={s.navBackBtn} onClick={() => { playClick(); setApp(null); }} aria-label="Back">
-            <svg width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="#0A84FF"
+            <svg width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="#d3132e"
               strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M7.5 1L1 8l6.5 7" />
             </svg>
           </button>
           <span style={s.navTitle}>Messages</span>
           <button style={s.navActionBtn}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A84FF" strokeWidth="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d3132e" strokeWidth="2">
               <path d="M12 5v14M5 12h14" strokeLinecap="round"/>
             </svg>
           </button>
@@ -384,6 +423,12 @@ export default function SMSApp() {
   const cname   = threadName(activeThread, shownMsgs.filter(m => !m.isSystem), meta);
   const isGroup = isGroupThread(meta);
 
+  // Live read-receipt lookup: shownMsgs are local copies, so receipt flips
+  // (mark_read_receipts directive) must be read from engine state at render.
+  const receiptIds = new Set(
+    (state.messageThreads[activeThread] ?? []).filter(m => m.receiptRead).map(m => m.id),
+  );
+
   // Typing indicator dot color
   const typingDotColor = (isGroup && localTyping)
     ? senderColor(localTyping.sender)
@@ -396,7 +441,7 @@ export default function SMSApp() {
       {/* Conversation nav bar */}
       <div style={s.convNav}>
         <button style={s.navBackBtn} onClick={() => { playClick(); setActiveThread(null); }} aria-label="Back">
-          <svg width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="#0A84FF"
+          <svg width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="#d3132e"
             strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M7.5 1L1 8l6.5 7" />
           </svg>
@@ -409,10 +454,10 @@ export default function SMSApp() {
         </div>
 
         <div style={s.convIcons}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A84FF" strokeWidth="1.8">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d3132e" strokeWidth="1.8">
             <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013 6.18 2 2 0 015 4h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L9.09 11.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 18.92v-2z" strokeLinecap="round"/>
           </svg>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A84FF" strokeWidth="1.8">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d3132e" strokeWidth="1.8">
             <path d="M15 10l-4 4L3 7l1-1" strokeLinecap="round"/>
             <rect x="2" y="3" width="20" height="14" rx="2" />
             <path d="M8 21h8M12 17v4" strokeLinecap="round"/>
@@ -444,10 +489,13 @@ export default function SMSApp() {
 
           if (msg.sender === 'player') {
             // Tail only on the last bubble in a run of player messages
-            const radius = msg.chainLast ? '18px 18px 4px 18px' : '18px 18px 18px 18px';
+            const radius = msg.chainLast ? '4px' : '4px';
             return (
               <div key={msg.id} style={{ ...s.rowRight, marginTop: mt }}>
                 <div style={{ ...s.bubbleSent, borderRadius: radius }}>{msg.body}</div>
+                {receiptIds.has(msg.id) && (
+                  <span style={s.readReceipt} className="receipt-fade-in">Read</span>
+                )}
               </div>
             );
           }
@@ -462,7 +510,7 @@ export default function SMSApp() {
           }
 
           // Tail only on the last bubble in a run from this sender
-          const radius = msg.chainLast ? '18px 18px 18px 4px' : '18px 18px 18px 18px';
+          const radius = msg.chainLast ? '4px' : '4px';
 
           if (msg.isPhoto) {
             return (
@@ -535,8 +583,13 @@ export default function SMSApp() {
         </div>
       ) : (
         <div style={s.inputBar}>
-          <div style={s.inputField}>
-            <span style={s.inputPlaceholder}>iMessage</span>
+          <div style={{
+            ...s.inputField,
+            ...(scrambleActive ? { borderColor: 'rgba(211,19,46,0.55)', boxShadow: '0 0 6px rgba(211,19,46,0.25) inset' } : {}),
+          }}>
+            {scrambleActive
+              ? <ScrambleText base="Message" style={s.inputPlaceholder} />
+              : <span style={s.inputPlaceholder}>Message</span>}
           </div>
           <button style={s.sendBtn} disabled>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
@@ -558,19 +611,39 @@ function ChoiceBtn({ choice, onSelect }) {
     <button
       style={{
         ...s.choiceBtn,
-        background: hov ? 'rgba(10,132,255,0.08)' : 'none',
+        background: hov ? 'rgba(211,19,46,0.08)' : 'none',
       }}
       onClick={() => onSelect(choice)}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
     >
       <span style={s.choiceBtnText}>{choice.label}</span>
-      <svg width="7" height="12" viewBox="0 0 7 12" fill="none" stroke="rgba(10,132,255,0.5)"
+      <svg width="7" height="12" viewBox="0 0 7 12" fill="none" stroke="rgba(211,19,46,0.5)"
         strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M1 1l5 5-5 5"/>
       </svg>
     </button>
   );
+}
+
+// ─── Scramble text (Doubt composer effect) ────────────────────────────────────
+// Glitches the given base string with block/glyph noise on a fast interval.
+// Used on the input-bar placeholder while a composer_effect scramble is live.
+function ScrambleText({ base, style }) {
+  const GLYPHS = '█▓▒░#@$%&*<>/\\|~';
+  const [txt, setTxt] = useState(base);
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setTxt(
+        base
+          .split('')
+          .map(c => (c === ' ' || Math.random() < 0.45 ? c : GLYPHS[Math.floor(Math.random() * GLYPHS.length)]))
+          .join(''),
+      );
+    }, 90);
+    return () => clearInterval(iv);
+  }, [base]);
+  return <span style={{ ...style, color: 'rgba(211,19,46,0.7)' }}>{txt}</span>;
 }
 
 // ─── Thread row ────────────────────────────────────────────────────────────
@@ -627,14 +700,16 @@ function Avatar({ name, size }) {
   const letter = name?.[0]?.toUpperCase() ?? '?';
   return (
     <div style={{
-      width: size, height: size, borderRadius: '50%',
+      width: size, height: size, borderRadius: '4px',
       background: bg,
+      boxShadow: 'inset 0 0 0 1.5px rgba(0,0,0,0.6)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       flexShrink: 0,
-      fontSize: size * 0.42,
-      fontWeight: '600',
+      fontSize: size * 0.46,
+      fontWeight: '700',
       color: '#fff',
-      fontFamily: SYS,
+      fontFamily: PHONE.HEAVY,
+      transform: PHONE.SKEW,
     }}>
       {letter}
     </div>
@@ -708,11 +783,11 @@ const s = {
   },
   navBackBtn: {
     display:'flex', alignItems:'center', gap:'4px',
-    background:'none', border:'none', cursor:'pointer', color:'#0A84FF',
+    background:'none', border:'none', cursor:'pointer', color:'#d3132e',
     padding:'4px 0', minWidth:60,
   },
-  navBackLabel: { fontSize:'17px', color:'#0A84FF', fontFamily:SYS },
-  navTitle: { fontSize:'17px', fontWeight:'600', color:'#fff', letterSpacing:'0.01em' },
+  navBackLabel: { fontSize:'17px', color:'#d3132e', fontFamily:SYS },
+  navTitle: { fontFamily:PHONE.HEAVY, fontSize:'20px', color:'#fff', letterSpacing:'0.03em', textTransform:'uppercase', transform:PHONE.SKEW, WebkitTextStroke:'1px #000', paintOrder:'stroke fill' },
   navActionBtn: {
     background:'none', border:'none', cursor:'pointer', padding:'4px',
     display:'flex', alignItems:'center', justifyContent:'flex-end', minWidth:60,
@@ -728,7 +803,7 @@ const s = {
   },
   threadInfo:    { flex:1, minWidth:0, display:'flex', flexDirection:'column', gap:'2px' },
   threadMeta:    { display:'flex', alignItems:'center', justifyContent:'space-between' },
-  threadName:    { fontSize:'16px', color:'#fff' },
+  threadName:    { fontFamily:PHONE.COND, fontSize:'17px', fontWeight:600, color:'#fff', letterSpacing:'0.02em', textTransform:'uppercase' },
   threadTime:    { fontSize:'12px', color:'#8E8E93' },
   previewRow:    { display:'flex', alignItems:'center', justifyContent:'space-between', gap:4 },
   threadPreview: {
@@ -736,12 +811,12 @@ const s = {
     overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis', flex:1,
   },
   unreadBadge: {
-    minWidth:18, height:18, borderRadius:9,
-    background:'#0A84FF',
+    minWidth:18, height:18, borderRadius:3,
+    background:'#d3132e', border:'1.5px solid #000',
     display:'flex', alignItems:'center', justifyContent:'center',
-    padding:'0 5px', flexShrink:0,
+    padding:'0 5px', flexShrink:0, boxShadow:'1px 1px 0 #000',
   },
-  unreadBadgeText: { fontSize:11, fontWeight:'700', color:'#fff', lineHeight:1 },
+  unreadBadgeText: { fontFamily:PHONE.COND, fontSize:11, fontWeight:'700', color:'#fff', lineHeight:1 },
 
   timeSep: {
     alignSelf:     'center',
@@ -759,7 +834,7 @@ const s = {
     flexShrink:0,
   },
   convContactInfo: { display:'flex', flexDirection:'row', alignItems:'center', gap:'8px' },
-  convName:  { fontSize:'15px', fontWeight:'600', color:'#fff', letterSpacing:'0.01em' },
+  convName:  { fontFamily:PHONE.COND, fontSize:'16px', fontWeight:700, color:'#fff', letterSpacing:'0.04em', textTransform:'uppercase' },
   convIcons: { display:'flex', gap:'16px', minWidth:60, justifyContent:'flex-end' },
 
   conversation: {
@@ -775,7 +850,11 @@ const s = {
     display:'flex', flexDirection:'column', alignItems:'flex-start',
     justifyContent:'flex-start', paddingLeft:2,
   },
-  rowRight: { display:'flex', justifyContent:'flex-end', paddingRight:2 },
+  rowRight: { display:'flex', flexDirection:'column', alignItems:'flex-end', justifyContent:'flex-end', paddingRight:2 },
+  readReceipt: {
+    fontSize:'10.5px', color:'#8E8E93', fontFamily:SYS,
+    marginTop:'2px', marginRight:'4px', letterSpacing:'0.02em',
+  },
   senderLabel: {
     fontFamily:    MONO,
     fontSize:      '10px',
@@ -787,24 +866,26 @@ const s = {
   },
 
   bubbleRecv: {
-    maxWidth:'75%', background:'#3A3A3C', color:'#fff',
-    padding:'9px 13px', borderRadius:'18px 18px 18px 4px',
+    maxWidth:'75%', background:'rgba(22,22,28,0.95)', color:'#fff',
+    padding:'9px 13px', borderRadius:'4px',
+    border:'1.5px solid rgba(0,0,0,0.7)', boxShadow:'2px 2px 0 rgba(0,0,0,0.45)',
     fontSize:'15px', lineHeight:'1.45', whiteSpace:'pre-wrap', wordBreak:'break-word',
   },
   bubbleSent: {
-    maxWidth:'75%', background:'#0B84FF', color:'#fff',
-    padding:'9px 13px', borderRadius:'18px 18px 4px 18px',
-    fontSize:'15px', lineHeight:'1.45', whiteSpace:'pre-wrap', wordBreak:'break-word',
+    maxWidth:'75%', background:PHONE.RED, color:'#fff',
+    padding:'9px 13px', borderRadius:'4px',
+    border:'1.5px solid #000', boxShadow:'2px 2px 0 rgba(0,0,0,0.5)',
+    fontSize:'15px', lineHeight:'1.45', whiteSpace:'pre-wrap', wordBreak:'break-word', fontWeight:500,
   },
   bubbleGhost: {
     maxWidth:'75%', background:'rgba(58,58,60,0.45)', color:'rgba(255,255,255,0.5)',
-    padding:'9px 13px', borderRadius:'18px 18px 18px 4px',
+    padding:'9px 13px', borderRadius:'4px',
     fontSize:'14px', lineHeight:'1.45', border:'1px dashed rgba(142,142,147,0.3)',
     fontStyle:'italic', whiteSpace:'pre-wrap', wordBreak:'break-word',
   },
 
   bubblePhoto: {
-    maxWidth:'75%', background:'#3A3A3C', borderRadius:'18px 18px 18px 4px',
+    maxWidth:'75%', background:'rgba(22,22,28,0.95)', borderRadius:'4px',
     overflow:'hidden',
   },
   photoPlaceholder: {
@@ -815,8 +896,8 @@ const s = {
   photoCaption: { fontSize:'13px', color:'rgba(255,255,255,0.7)', padding:'8px 12px 10px', margin:0 },
 
   typingBubble: {
-    background:'#3A3A3C', padding:'13px 16px',
-    borderRadius:'18px 18px 18px 4px',
+    background:'rgba(22,22,28,0.95)', padding:'13px 16px',
+    borderRadius:'4px',
     display:'flex', alignItems:'center', gap:'5px',
   },
   dot: {
@@ -835,7 +916,7 @@ const s = {
     cursor:'pointer', color:'inherit',
     transition:'background 0.1s',
   },
-  choiceBtnText: { fontSize:'16px', color:'#0A84FF', fontFamily:SYS, textAlign:'left' },
+  choiceBtnText: { fontSize:'16px', color:'#d3132e', fontFamily:SYS, textAlign:'left' },
 
   inputBar: {
     display:'flex', alignItems:'center', gap:'8px',
@@ -844,16 +925,16 @@ const s = {
     flexShrink:0,
   },
   inputField: {
-    flex:1, background:'#1C1C1E', borderRadius:'18px',
-    padding:'8px 14px',
-    border:'1px solid rgba(84,84,88,0.5)',
+    flex:1, background:'rgba(12,12,16,0.85)', borderRadius:'4px',
+    padding:'9px 14px',
+    border:'1px solid rgba(255,255,255,0.1)',
     display:'flex', alignItems:'center',
   },
-  inputPlaceholder: { fontSize:'15px', color:'#636366', fontFamily:SYS },
+  inputPlaceholder: { fontFamily:PHONE.MONO, fontSize:'12px', color:'rgba(255,255,255,0.35)', letterSpacing:'0.14em', textTransform:'uppercase' },
   sendBtn: {
-    width:30, height:30, borderRadius:'50%',
-    background:'rgba(10,132,255,0.3)',
-    border:'none', cursor:'default',
+    width:30, height:30, borderRadius:'4px',
+    background:'rgba(211,19,46,0.35)',
+    border:'1px solid rgba(211,19,46,0.6)', cursor:'default',
     display:'flex', alignItems:'center', justifyContent:'center',
   },
 };
@@ -867,6 +948,11 @@ const css = `
   .typing-fade-in { animation: typingFadeIn 0.18s ease forwards; }
   @keyframes typingFadeIn {
     from { opacity: 0; transform: translateY(5px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .receipt-fade-in { animation: receiptFadeIn 0.35s ease forwards; }
+  @keyframes receiptFadeIn {
+    from { opacity: 0; transform: translateY(-2px); }
     to   { opacity: 1; transform: translateY(0); }
   }
 `;

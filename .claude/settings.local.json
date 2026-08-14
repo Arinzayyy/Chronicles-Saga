@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(npx vite:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(git remote *)",
+      "Bash(git config *)",
+      "Bash(git fetch *)",
+      "Bash(git rev-parse *)",
+      "Bash(git ls-remote *)",
+      "Bash(git status *)",
+      "Bash(git add *)",
+      "Bash(tasklist //FI \"IMAGENAME eq git.exe\")"
     ]
   }
 }

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import bgImage from '../assets/main_menu_bg.jpg';
 import { playClick } from '../utils/sound';
 import {
   getVolume, setVolume,
@@ -7,12 +6,19 @@ import {
   subscribe as subscribeVolume,
 } from '../utils/volumeStore';
 
+// Background art — falls back to the menu persona art; glob never errors on a
+// missing file, so the build is safe even with no art present.
+const bgImgs = import.meta.glob('../assets/main_menu_persona.*', { eager: true, query: '?url', import: 'default' });
+const bgImage = Object.values(bgImgs)[0] ?? null;
+
 // ─── Style tokens (mirrors MainMenu.jsx) ──────────────────────────────────────
-const ACCENT = '#E94560';
-const MONO   = "'Courier New', 'Consolas', 'Liberation Mono', monospace";
-const BG     = '#0a0a0f';
-const DIM    = 'rgba(255,255,255,0.18)';
-const MID    = 'rgba(255,255,255,0.45)';
+const HEAVY = "'Anton', 'Archivo Black', 'Arial Black', Impact, sans-serif";
+const MONO  = "'Courier New', 'Consolas', 'Liberation Mono', monospace";
+const RED    = '#d3132e';
+const TEAL   = '#19b8b4';
+const BG      = '#08090c';
+const DIM     = 'rgba(255,255,255,0.18)';
+const MID     = 'rgba(255,255,255,0.5)';
 
 export default function MainMenuSettings({ onClose }) {
   const [volume, setVolState] = useState(getVolume());
@@ -49,107 +55,108 @@ export default function MainMenuSettings({ onClose }) {
   const volumePct = Math.round(volume * 100);
 
   return (
-    <div style={{ ...s.root, opacity: visible ? 1 : 0 }}>
+    <div style={{ ...s.root, opacity: visible ? 1 : 0 }} className={visible ? 'set-in' : ''}>
       <div style={s.bgImg} aria-hidden="true" />
-      <div style={s.bgOverlay} aria-hidden="true" />
+      <div style={s.wash} aria-hidden="true" />
       <div style={s.scanlines} aria-hidden="true" />
 
       <div style={s.layout}>
-        <div style={s.panel}>
-          <div style={s.sysTag}>SYS://CHRONICLES/SETTINGS</div>
-
-          <div style={s.titleRow}>
-            <span style={s.titleWord}>SYSTEM</span>
-            <span style={s.titleAccent}>CONFIG</span>
+        <div style={s.headerRow}>
+          <div>
+            <div style={s.crumb}>SYS://CHRONICLES / SETTINGS</div>
+            <h1 style={s.title}>SETTINGS</h1>
           </div>
-          <div style={s.divider} />
+          <button className="set-back" style={s.backBtn} onClick={handleBack}>
+            ◀ BACK
+          </button>
+        </div>
 
-          {/* ── SOUNDS & HAPTICS ─────────────────────────────────────────── */}
-          <section style={s.section}>
-            <h2 style={s.sectionLabel}>// SOUNDS &amp; HAPTICS</h2>
+        {/* ── SOUNDS & HAPTICS ───────────────────────────────────────────── */}
+        <section style={s.section}>
+          <h2 style={s.sectionLabel}>// SOUNDS &amp; HAPTICS</h2>
 
-            <div style={s.row}>
-              <div style={s.rowHead}>
-                <span style={s.rowLabel}>MASTER VOLUME</span>
-                <span style={s.rowValue}>
-                  {muted ? 'MUTED' : `${volumePct}%`}
-                </span>
-              </div>
-              <input
-                className="cs-slider"
-                type="range"
-                min="0"
-                max="100"
-                step="1"
-                value={volumePct}
-                onChange={handleVolume}
-                disabled={muted}
-                aria-label="Master volume"
+          <div style={s.row}>
+            <div style={s.rowHead}>
+              <span style={s.rowLabel}>MASTER VOLUME</span>
+              <span style={s.rowValue}>{muted ? 'MUTED' : `${volumePct}%`}</span>
+            </div>
+            <input
+              className="set-slider"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value={volumePct}
+              onChange={handleVolume}
+              disabled={muted}
+              aria-label="Master volume"
+              style={{
+                ...s.slider,
+                opacity: muted ? 0.35 : 1,
+                background: `linear-gradient(to right, ${RED} 0%, ${RED} ${volumePct}%, rgba(255,255,255,0.1) ${volumePct}%, rgba(255,255,255,0.1) 100%)`,
+              }}
+            />
+            <div style={s.rowHint}>// background music &amp; interface sounds</div>
+          </div>
+
+          <div style={s.row}>
+            <div style={s.rowHead}>
+              <span style={s.rowLabel}>MUTE ALL</span>
+              <button
+                className="set-toggle"
+                onClick={handleMuteToggle}
                 style={{
-                  ...s.slider,
-                  opacity: muted ? 0.35 : 1,
-                  background: `linear-gradient(to right, ${ACCENT} 0%, ${ACCENT} ${volumePct}%, rgba(255,255,255,0.08) ${volumePct}%, rgba(255,255,255,0.08) 100%)`,
+                  ...s.toggle,
+                  background:  muted ? RED : 'transparent',
+                  color:       muted ? '#fff' : MID,
+                  borderColor: muted ? '#000' : 'rgba(255,255,255,0.22)',
+                  boxShadow:   muted ? '3px 3px 0 #000' : 'none',
                 }}
-              />
-              <div style={s.rowHint}>
-                // controls background music &amp; interface sounds
-              </div>
+              >
+                {muted ? 'ON' : 'OFF'}
+              </button>
             </div>
-
-            <div style={s.row}>
-              <div style={s.rowHead}>
-                <span style={s.rowLabel}>MUTE ALL</span>
-                <button
-                  onClick={handleMuteToggle}
-                  style={{
-                    ...s.toggle,
-                    background: muted ? ACCENT : 'transparent',
-                    color:      muted ? '#0a0a0f' : MID,
-                    borderColor: muted ? ACCENT : 'rgba(255,255,255,0.18)',
-                  }}
-                >
-                  {muted ? 'ON' : 'OFF'}
-                </button>
-              </div>
-              <div style={s.rowHint}>
-                // silences all audio output
-              </div>
-            </div>
-          </section>
-
-          {/* ── Back button ──────────────────────────────────────────────── */}
-          <div style={s.footer}>
-            <button style={s.backBtn} onClick={handleBack}>
-              <span style={s.backArrow}>◀</span>
-              <span>BACK TO MENU</span>
-            </button>
-            <span style={s.buildTag}>BUILD 0.1 // HALIMA</span>
+            <div style={s.rowHint}>// silences all audio output</div>
           </div>
+        </section>
+
+        <div style={s.footer}>
+          <span style={s.buildTag}>BUILD 0.2 // HALIMA</span>
         </div>
       </div>
 
-      <style>{`
-        /* Range slider thumb — cross-browser */
-        input[type="range"].cs-slider::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 16px; height: 16px;
-          background: ${ACCENT};
-          border: 2px solid #0a0a0f;
-          box-shadow: 0 0 8px ${ACCENT}aa;
-          cursor: pointer;
-        }
-        input[type="range"].cs-slider::-moz-range-thumb {
-          width: 16px; height: 16px;
-          background: ${ACCENT};
-          border: 2px solid #0a0a0f;
-          box-shadow: 0 0 8px ${ACCENT}aa;
-          cursor: pointer;
-        }
-      `}</style>
+      <style>{css}</style>
     </div>
   );
 }
+
+const css = `
+  .set-in { animation: setIn 0.45s cubic-bezier(0.22,1,0.36,1) forwards; }
+  @keyframes setIn {
+    from { opacity: 0; transform: translateX(-18px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .set-back:hover { color: #fff; border-color: ${RED}; background: rgba(211,19,46,0.18); }
+  .set-toggle:hover { filter: brightness(1.1); }
+
+  /* Range slider thumb — cross-browser */
+  input[type="range"].set-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px; height: 18px;
+    background: ${RED};
+    border: 2px solid #000;
+    box-shadow: 0 0 10px ${RED}cc, 2px 2px 0 #000;
+    cursor: pointer;
+  }
+  input[type="range"].set-slider::-moz-range-thumb {
+    width: 18px; height: 18px;
+    background: ${RED};
+    border: 2px solid #000;
+    box-shadow: 0 0 10px ${RED}cc;
+    cursor: pointer;
+  }
+`;
 
 const s = {
   root: {
@@ -161,22 +168,25 @@ const s = {
     alignItems: 'stretch',
     overflow: 'hidden',
     fontFamily: MONO,
+    color: '#fff',
     transition: 'opacity 0.4s ease',
   },
 
   bgImg: {
     position: 'absolute', inset: 0,
-    backgroundImage: `url(${bgImage})`,
+    backgroundImage: bgImage ? `url(${bgImage})` : 'none',
     backgroundSize: 'cover',
-    backgroundPosition: 'center',
+    backgroundPosition: 'center right',
     backgroundRepeat: 'no-repeat',
     zIndex: 0,
-    filter: 'blur(2px)',
   },
-  bgOverlay: {
+  // Dark wash hugging the left so the controls stay legible while the art
+  // stays visible on the right (matches the menu / save screen).
+  wash: {
     position: 'absolute', inset: 0,
-    background: 'linear-gradient(to bottom, rgba(0,0,0,0.82), rgba(0,0,0,0.92))',
+    background: 'linear-gradient(100deg, rgba(5,6,9,0.94) 0%, rgba(5,6,9,0.74) 36%, rgba(5,6,9,0.3) 64%, rgba(5,6,9,0) 84%)',
     zIndex: 1,
+    pointerEvents: 'none',
   },
   scanlines: {
     position: 'absolute', inset: 0,
@@ -189,164 +199,155 @@ const s = {
   layout: {
     position: 'relative',
     zIndex: 3,
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
     width: '100%',
-    minHeight: '100vh',
-    padding: '48px 32px',
-  },
-
-  panel: {
-    width: '100%',
-    maxWidth: '640px',
-    padding: '32px 36px',
-    border: `1px solid ${ACCENT}`,
-    background: 'rgba(0,0,0,0.55)',
-    boxShadow: `inset 0 0 32px rgba(233,69,96,0.05), 0 0 0 1px rgba(233,69,96,0.12)`,
+    maxWidth: '620px',
+    padding: '7vh 0 60px 5vw',
     display: 'flex',
     flexDirection: 'column',
-    gap: '24px',
   },
 
-  sysTag: {
+  headerRow: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: '20px',
+    marginBottom: '34px',
+  },
+
+  crumb: {
     fontFamily: MONO,
     fontSize: '10px',
-    letterSpacing: '0.2em',
+    letterSpacing: '0.25em',
     color: DIM,
+    marginBottom: '8px',
+    textShadow: '1px 1px 0 #000',
   },
 
-  titleRow: {
-    display: 'flex',
-    gap: '14px',
-    alignItems: 'baseline',
-  },
-  titleWord: {
-    fontFamily: MONO,
-    fontSize: 'clamp(32px, 5vw, 44px)',
-    fontWeight: 700,
-    letterSpacing: '0.05em',
-    color: '#ffffff',
-  },
-  titleAccent: {
-    fontFamily: MONO,
-    fontSize: 'clamp(32px, 5vw, 44px)',
-    fontWeight: 700,
-    letterSpacing: '0.05em',
-    color: ACCENT,
-    textShadow: `0 0 28px ${ACCENT}77`,
+  title: {
+    fontFamily: HEAVY,
+    fontSize: 'clamp(46px, 6.4vw, 88px)',
+    fontWeight: 400,
+    letterSpacing: '0.01em',
+    lineHeight: 0.9,
+    margin: 0,
+    color: '#fff',
+    textTransform: 'uppercase',
+    transform: 'skewX(-7deg) rotate(-2deg)',
+    transformOrigin: 'left center',
+    WebkitTextStroke: '2.5px #000',
+    paintOrder: 'stroke fill',
+    textShadow: `3px 3px 0 #000, 6px 7px 0 #000, 0 0 30px ${RED}77, 9px 10px 0 rgba(0,0,0,0.4)`,
   },
 
-  divider: {
-    width: '56px',
-    height: '2px',
-    background: ACCENT,
-    boxShadow: `0 0 10px ${ACCENT}66`,
+  backBtn: {
+    fontFamily: MONO,
+    fontSize: '11px',
+    letterSpacing: '0.22em',
+    color: MID,
+    background: 'rgba(0,0,0,0.45)',
+    border: `1px solid ${DIM}`,
+    padding: '10px 16px',
+    cursor: 'pointer',
+    flexShrink: 0,
+    transition: 'color 0.15s, border-color 0.15s, background 0.15s',
   },
 
   section: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
+    gap: '12px',
   },
   sectionLabel: {
     fontFamily: MONO,
     fontSize: '11px',
     fontWeight: 400,
-    letterSpacing: '0.2em',
-    color: 'rgba(233,69,96,0.65)',
-    margin: 0,
+    letterSpacing: '0.22em',
+    color: 'rgba(255,255,255,0.55)',
+    margin: '0 0 4px',
     textTransform: 'uppercase',
+    textShadow: '1px 1px 0 #000',
   },
 
   row: {
-    padding: '14px 16px',
-    border: '1px solid rgba(255,255,255,0.08)',
-    background: 'rgba(0,0,0,0.35)',
+    padding: '16px 18px',
+    background: 'rgba(8,9,12,0.5)',
+    backdropFilter: 'blur(2px)',
+    WebkitBackdropFilter: 'blur(2px)',
+    borderLeft: `4px solid rgba(255,255,255,0.12)`,
     display: 'flex',
     flexDirection: 'column',
-    gap: '10px',
+    gap: '12px',
   },
   rowHead: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: '12px',
   },
   rowLabel: {
-    fontFamily: MONO,
-    fontSize: '12px',
-    letterSpacing: '0.15em',
-    color: '#ffffff',
+    fontFamily: HEAVY,
+    fontSize: 'clamp(20px, 2.2vw, 28px)',
+    fontWeight: 400,
+    letterSpacing: '0.03em',
+    color: '#fff',
+    textTransform: 'uppercase',
+    lineHeight: 1,
+    transform: 'skewX(-7deg)',
+    transformOrigin: 'left center',
+    WebkitTextStroke: '1.5px #000',
+    paintOrder: 'stroke fill',
+    textShadow: '2px 2px 0 #000',
   },
   rowValue: {
     fontFamily: MONO,
-    fontSize: '12px',
+    fontSize: '13px',
+    fontWeight: 700,
     letterSpacing: '0.1em',
-    color: ACCENT,
+    color: RED,
     minWidth: '60px',
     textAlign: 'right',
+    textShadow: '1px 1px 0 #000',
   },
   rowHint: {
     fontFamily: MONO,
     fontSize: '10px',
     letterSpacing: '0.08em',
-    color: 'rgba(255,255,255,0.25)',
+    color: 'rgba(255,255,255,0.3)',
   },
 
   slider: {
     WebkitAppearance: 'none',
     appearance: 'none',
     width: '100%',
-    height: '4px',
-    borderRadius: '2px',
+    height: '6px',
+    borderRadius: '3px',
     outline: 'none',
     cursor: 'pointer',
     transition: 'opacity 0.15s',
   },
 
   toggle: {
-    fontFamily: MONO,
-    fontSize: '11px',
-    fontWeight: 700,
-    letterSpacing: '0.2em',
-    padding: '4px 14px',
-    border: '1px solid',
+    fontFamily: HEAVY,
+    fontSize: '13px',
+    fontWeight: 400,
+    letterSpacing: '0.16em',
+    padding: '6px 18px',
+    border: '2px solid',
     cursor: 'pointer',
     transition: 'all 0.15s',
-    minWidth: '54px',
+    minWidth: '60px',
+    textTransform: 'uppercase',
   },
 
   footer: {
-    marginTop: '8px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: '16px',
-    borderTop: '1px solid rgba(255,255,255,0.06)',
-  },
-  backBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '10px',
-    padding: '10px 18px',
-    fontFamily: MONO,
-    fontSize: '12px',
-    fontWeight: 700,
-    letterSpacing: '0.2em',
-    color: '#ffffff',
-    background: 'rgba(233,69,96,0.14)',
-    border: `1px solid ${ACCENT}`,
-    cursor: 'pointer',
-    transition: 'background 0.15s',
-  },
-  backArrow: {
-    color: ACCENT,
-    fontSize: '10px',
+    marginTop: 'auto',
+    paddingTop: '28px',
   },
   buildTag: {
     fontFamily: MONO,
     fontSize: '10px',
     letterSpacing: '0.15em',
     color: DIM,
+    textShadow: '1px 1px 0 #000',
   },
 };

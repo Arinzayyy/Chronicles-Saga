@@ -12,7 +12,9 @@ export function EngineProvider({ children }) {
     addMessage, removeGhostMessage,
     resolveAlias, setTypingIndicator,
     createGroupThread, addToGroupThread,
+    removeFromGroupThread, bumpThread, markMessageReceipt,
     unlockApp, unlockComputerApp, setFlag,
+    pushNarration, unlockFile,
   } = useGame();
 
   // ── Resume after save-load ──────────────────────────────────────────────────
@@ -24,6 +26,10 @@ export function EngineProvider({ children }) {
   useEffect(() => {
     if (!state.flags?.__pendingResume__) return;
 
+    // A save was just loaded: kill any in-flight timers from the abandoned
+    // run so stale directives can't fire into the restored state.
+    engineRef.current?._clearTimers();
+
     // Clear the flag immediately so this effect doesn't re-fire
     setFlag('__pendingResume__', false);
 
@@ -33,8 +39,14 @@ export function EngineProvider({ children }) {
     const beat = engineRef.current?.beatMap?.[currentBeat];
     if (!beat) return;
 
-    // If beat has player choices, the UI re-renders them — no advancement needed
-    if (beat.player_choices?.length > 0) return;
+    // If beat has player choices, the UI re-renders them — no advancement needed.
+    // Its messages are already restored as history, so the NPC is "done": mark
+    // the beat settled or the choices stay gated forever (they wait on the
+    // __beatSettled__ signal that only fires while a beat is actively running).
+    if (beat.player_choices?.length > 0) {
+      setFlag('__beatSettled__', { beat: currentBeat, ts: Date.now() });
+      return;
+    }
 
     // If the beat was supposed to auto-advance but the on_complete beat never ran,
     // fire it now to unblock progression
@@ -59,7 +71,9 @@ export function EngineProvider({ children }) {
         addMessage, removeGhostMessage,
         resolveAlias, setTypingIndicator,
         createGroupThread, addToGroupThread,
+        removeFromGroupThread, bumpThread, markMessageReceipt,
         unlockApp, unlockComputerApp, setFlag,
+        pushNarration, unlockFile,
       },
       stateRef,
     );
@@ -69,6 +83,17 @@ export function EngineProvider({ children }) {
   useEffect(() => {
     engineRef.current.initialize();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-start the story: once the player is in the game with an identity and
+  // no beats have run (fresh run or post-RESET_GAME), load the season's first
+  // beat. Replaces the old hardcoded loadBeat in SMSApp.
+  useEffect(() => {
+    if (state.gamePhase !== 'playing') return;
+    if (!state.viewerIdentity) return;
+    if (state.beatHistory.length > 0) return;
+    const first = engineRef.current?.firstBeatId?.();
+    if (first) engineRef.current.loadBeat(first);
+  }, [state.gamePhase, state.viewerIdentity, state.beatHistory.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => () => engineRef.current?.destroy(), []);
 

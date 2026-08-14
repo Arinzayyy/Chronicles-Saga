@@ -3,6 +3,7 @@ import { useGame } from '../context/GameContext';
 import { playClick } from '../utils/sound';
 import lockBg from '../assets/phone_lockscreen.jpg';
 import homeBg from '../assets/phone_homescreen.jpg';
+import { PHONE } from './phoneTheme';
 
 const SYS  = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif';
 const MONO = "'Courier New', 'Consolas', monospace";
@@ -29,7 +30,7 @@ function fmtDate() {
 }
 
 // ─── Lock Screen ──────────────────────────────────────────────────────────────
-function LockScreen({ onUnlock }) {
+function LockScreen({ onUnlock, notifs = [] }) {
   const [time, setTime] = useState(fmtTimeFull);
   const [unlocking, setUnlocking] = useState(false);
 
@@ -47,6 +48,8 @@ function LockScreen({ onUnlock }) {
       onUnlock();
     }, 420);
   }
+
+  const hasNotifs = notifs.length > 0;
 
   return (
     <div style={{ ...ls.root, ...(unlocking ? ls.rootUnlocking : {}) }} onClick={handleClick}>
@@ -71,6 +74,41 @@ function LockScreen({ onUnlock }) {
         <div style={ls.clockDate}>{fmtDate()}</div>
       </div>
 
+      {/* Notification stack — what the player woke up to */}
+      {hasNotifs && (
+        <div style={ls.notifWrap}>
+          <div style={ls.notifCountRow}>
+            <span style={ls.notifCount}>
+              {notifs.length} notification{notifs.length === 1 ? '' : 's'}
+            </span>
+          </div>
+          {notifs.map((n, i) => (
+            <div
+              key={n.id ?? i}
+              style={{
+                ...ls.notifCard,
+                // Older cards tuck slightly behind, iOS-stack style
+                opacity: 1 - Math.max(0, notifs.length - 1 - i) * 0.04,
+              }}
+            >
+              <div style={ls.notifIcon}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="white">
+                  <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
+                </svg>
+              </div>
+              <div style={ls.notifBody}>
+                <div style={ls.notifTopRow}>
+                  <span style={ls.notifApp}>MESSAGES</span>
+                  <span style={ls.notifWhen}>now</span>
+                </div>
+                <p style={ls.notifTitle}>{n.title}</p>
+                {n.body ? <p style={ls.notifText}>{n.body}</p> : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Swipe hint */}
       <div style={ls.swipeWrap}>
         <span style={ls.swipeArrow} className="ls-pulse">↑</span>
@@ -93,7 +131,10 @@ function LockScreen({ onUnlock }) {
 // ─── Phone Home ───────────────────────────────────────────────────────────────
 export default function PhoneHome() {
   const { state, setContext, setApp } = useGame();
-  const [locked,  setLocked]  = useState(!_sessionUnlocked);
+  // The story parks the player on the lock screen via app === 'lockscreen';
+  // keep it locked there regardless of the session-unlock flag.
+  const forceLock = state.currentApp === 'lockscreen';
+  const [locked,  setLocked]  = useState(forceLock || !_sessionUnlocked);
   const [time,    setTime]    = useState(fmtTimeStatus);
   const [fadeOut, setFadeOut] = useState(false);
   const timers = useRef([]);
@@ -161,7 +202,13 @@ export default function PhoneHome() {
       <div style={{ ...s.fade, opacity: fadeOut ? 1 : 0 }} />
 
       {/* Lock screen — rendered on top, removed from DOM after unlock */}
-      {locked && <LockScreen onUnlock={() => setLocked(false)} />}
+      {locked && (
+        <LockScreen
+          onUnlock={() => setLocked(false)}
+          notifs={state.flags?.__lockNotifs__ ?? []}
+          locked={forceLock}
+        />
+      )}
     </div>
   );
 }
@@ -203,38 +250,52 @@ function AppIconSmall({ badge, icon, onClick }) {
   );
 }
 
-// ─── App icon graphics ────────────────────────────────────────────────────────
+// ─── App icon graphics — angular Persona tiles ────────────────────────────────
+// A slanted-corner dark tile with an accent inner border, a corner slash, and a
+// bold white glyph. Nothing iOS about it.
+function Tile({ accent, children }) {
+  return (
+    <div style={{ ...s.tile, boxShadow: `inset 0 0 0 2px ${accent}, 0 5px 0 #000, 0 8px 16px rgba(0,0,0,0.55)` }}>
+      <div style={{ ...s.tileSlash, borderTopColor: accent }} />
+      {children}
+    </div>
+  );
+}
+
 function MsgIcon() {
   return (
-    <div style={{ ...s.squircle, background: 'linear-gradient(145deg, #30d158 0%, #25a244 100%)' }}>
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="white">
-        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+    <Tile accent={PHONE.RED}>
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="#fff">
+        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
       </svg>
-    </div>
+    </Tile>
   );
 }
 
 function PhotosIcon() {
   return (
-    <div style={{ ...s.squircle, background: '#fff', overflow: 'hidden' }}>
-      <svg viewBox="0 0 72 72" width="72" height="72">
-        {[['#FF9500',0],['#FF3B30',60],['#FF2D55',120],['#AF52DE',180],['#007AFF',240],['#34C759',300]].map(([color, angle]) => (
-          <ellipse key={angle} cx="36" cy="18" rx="11" ry="18" fill={color}
-            transform={`rotate(${angle} 36 36)`} opacity="0.92" />
-        ))}
-        <circle cx="36" cy="36" r="13" fill="white" />
+    <Tile accent={PHONE.TEAL}>
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.7">
+        <rect x="3" y="4" width="18" height="16" rx="1" />
+        <circle cx="8.5" cy="9" r="1.6" fill="#fff" stroke="none" />
+        <path d="M21 16l-5-5L5 20" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-    </div>
+    </Tile>
   );
 }
 
 function SettingsIcon() {
   return (
-    <div style={{ ...s.squircle, background: 'linear-gradient(145deg, #8e8e93 0%, #48484a 100%)' }}>
-      <svg width="38" height="38" viewBox="0 0 24 24" fill="white">
-        <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94L14.4 2.81c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41L9.25 5.35c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.63-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+    <Tile accent="#9aa0aa">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round">
+        <line x1="5" y1="7"  x2="19" y2="7" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+        <line x1="5" y1="17" x2="19" y2="17" />
+        <circle cx="9"  cy="7"  r="2.2" fill="#0b0b0f" />
+        <circle cx="15" cy="12" r="2.2" fill="#0b0b0f" />
+        <circle cx="8"  cy="17" r="2.2" fill="#0b0b0f" />
       </svg>
-    </div>
+    </Tile>
   );
 }
 
@@ -293,7 +354,7 @@ const ls = {
   overlay: {
     position:   'absolute',
     inset:      0,
-    background: 'rgba(0,0,0,0.35)',
+    background: 'linear-gradient(170deg, rgba(6,6,10,0.5) 0%, rgba(6,6,10,0.8) 100%)',
     zIndex:     1,
   },
   statusBar: {
@@ -333,20 +394,24 @@ const ls = {
     gap:       '8px',
   },
   clockTime: {
-    fontSize:      'clamp(60px, 15vw, 70px)',
-    fontWeight:    '700',
-    color:         '#ffffff',
-    letterSpacing: '-0.03em',
-    lineHeight:    1,
-    textShadow:    '0 2px 24px rgba(0,0,0,0.5)',
-    fontFamily:    SYS,
+    fontFamily:      PHONE.HEAVY,
+    fontSize:        'clamp(58px, 15vw, 76px)',
+    fontWeight:      400,
+    color:           '#fff',
+    letterSpacing:   '0.01em',
+    lineHeight:      0.88,
+    transform:       'skewX(-7deg)',
+    WebkitTextStroke:'2px #000',
+    paintOrder:      'stroke fill',
+    textShadow:      `3px 3px 0 #000, 0 0 30px ${PHONE.RED}66`,
   },
   clockDate: {
-    fontSize:      '14px',
-    fontWeight:    '400',
-    color:         'rgba(255,255,255,0.65)',
-    letterSpacing: '0.04em',
-    fontFamily:    MONO,
+    fontFamily:    PHONE.MONO,
+    fontSize:      '12px',
+    fontWeight:    400,
+    color:         'rgba(255,255,255,0.7)',
+    letterSpacing: '0.22em',
+    textTransform: 'uppercase',
   },
   swipeWrap: {
     position:      'relative',
@@ -364,11 +429,90 @@ const ls = {
     display:    'block',
   },
   swipeLabel: {
+    fontFamily:    PHONE.MONO,
+    fontSize:      '10px',
+    letterSpacing: '0.28em',
+    color:         'rgba(255,255,255,0.45)',
+    textTransform: 'uppercase',
+  },
+
+  // ── Notification stack ──────────────────────────────────────────────────
+  notifWrap: {
+    position:      'relative',
+    zIndex:        2,
+    width:         '100%',
+    padding:       '0 12px',
+    display:       'flex',
+    flexDirection: 'column',
+    gap:           '8px',
+    maxHeight:     '46%',
+    overflowY:     'auto',
+    marginBottom:  '10px',
+  },
+  notifCountRow: {
+    display:        'flex',
+    justifyContent: 'center',
+    marginBottom:   '2px',
+  },
+  notifCount: {
     fontFamily:    MONO,
     fontSize:      '10px',
-    letterSpacing: '0.2em',
-    color:         'rgba(255,255,255,0.4)',
-    textTransform: 'lowercase',
+    letterSpacing: '0.18em',
+    textTransform: 'uppercase',
+    color:         'rgba(255,255,255,0.55)',
+  },
+  notifCard: {
+    display:              'flex',
+    alignItems:           'flex-start',
+    gap:                  '10px',
+    background:           'rgba(10,10,14,0.82)',
+    backdropFilter:       'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
+    borderLeft:           `4px solid ${PHONE.RED}`,
+    borderRadius:         PHONE.RADIUS_PANEL,
+    padding:              '11px 13px',
+    boxShadow:            '4px 4px 0 rgba(0,0,0,0.5)',
+  },
+  notifIcon: {
+    width:          30,
+    height:         30,
+    borderRadius:   '4px',
+    background:     PHONE.RED,
+    boxShadow:      'inset 0 0 0 1.5px #000',
+    display:        'flex',
+    alignItems:     'center',
+    justifyContent: 'center',
+    flexShrink:     0,
+  },
+  notifBody: { flex: 1, minWidth: 0 },
+  notifTopRow: {
+    display:        'flex',
+    justifyContent: 'space-between',
+    alignItems:     'center',
+    marginBottom:   '1px',
+  },
+  notifApp: {
+    fontSize:      '10px',
+    fontWeight:    '600',
+    letterSpacing: '0.06em',
+    color:         'rgba(255,255,255,0.45)',
+  },
+  notifWhen: {
+    fontSize: '11px',
+    color:    'rgba(255,255,255,0.4)',
+  },
+  notifTitle: {
+    margin:     '1px 0 0',
+    fontSize:   '13.5px',
+    fontWeight: '600',
+    color:      '#fff',
+    lineHeight: 1.3,
+  },
+  notifText: {
+    margin:     '2px 0 0',
+    fontSize:   '12.5px',
+    color:      'rgba(255,255,255,0.75)',
+    lineHeight: 1.35,
   },
 };
 
@@ -400,7 +544,7 @@ const s = {
   wallpaperOverlay: {
     position:   'absolute',
     inset:      0,
-    background: 'rgba(0,0,0,0.32)',
+    background: 'linear-gradient(170deg, rgba(6,6,10,0.55) 0%, rgba(6,6,10,0.78) 100%)',
     zIndex:     0,
     pointerEvents: 'none',
   },
@@ -440,19 +584,26 @@ const s = {
     flexShrink: 0,
   },
   lockDate: {
-    fontSize:      '15px',
-    fontWeight:    '500',
-    color:         'rgba(255,255,255,0.75)',
-    letterSpacing: '0.01em',
+    fontFamily:    PHONE.MONO,
+    fontSize:      '12px',
+    fontWeight:    400,
+    color:         'rgba(255,255,255,0.7)',
+    letterSpacing: '0.2em',
+    textTransform: 'uppercase',
     margin:        0,
   },
   lockTime: {
-    fontSize:      '56px',
-    fontWeight:    '200',
-    color:         '#fff',
-    letterSpacing: '-0.02em',
-    margin:        '2px 0 0',
-    lineHeight:    1,
+    fontFamily:      PHONE.HEAVY,
+    fontSize:        '50px',
+    fontWeight:      400,
+    color:           '#fff',
+    letterSpacing:   '0.01em',
+    margin:          '6px 0 0',
+    lineHeight:      0.9,
+    transform:       'skewX(-7deg)',
+    WebkitTextStroke:'1.5px #000',
+    paintOrder:      'stroke fill',
+    textShadow:      `2px 2px 0 #000, 0 0 24px ${PHONE.RED}55`,
   },
 
   grid: {
@@ -482,40 +633,55 @@ const s = {
     transition:   'transform 0.12s ease',
     borderRadius: '16px',
   },
-  squircle: {
-    width:          '72px',
-    height:         '72px',
-    borderRadius:   '16px',
+  tile: {
+    position:       'relative',
+    width:          '68px',
+    height:         '68px',
+    borderRadius:   PHONE.RADIUS_TILE,
     display:        'flex',
     alignItems:     'center',
     justifyContent: 'center',
     overflow:       'hidden',
-    boxShadow:      '0 4px 12px rgba(0,0,0,0.35)',
+    background:     'linear-gradient(150deg, #20202a 0%, #0b0b0f 100%)',
+  },
+  // Accent triangle in the top-right corner (colour set inline by <Tile>)
+  tileSlash: {
+    position:    'absolute',
+    top:         0,
+    right:       0,
+    width:       0,
+    height:      0,
+    borderTop:   '16px solid',
+    borderLeft:  '16px solid transparent',
   },
   iconLabel: {
+    fontFamily:    PHONE.COND,
     fontSize:      '11px',
-    fontWeight:    '400',
-    color:         'rgba(255,255,255,0.9)',
-    textShadow:    '0 1px 3px rgba(0,0,0,0.6)',
-    letterSpacing: '0.01em',
+    fontWeight:    600,
+    color:         '#fff',
+    textShadow:    '1px 1px 0 #000',
+    letterSpacing: '0.14em',
+    textTransform: 'uppercase',
   },
   badge: {
     position:       'absolute',
-    top:            '-4px',
-    right:          '-4px',
-    width:          '18px',
+    top:            '-5px',
+    right:          '-5px',
+    minWidth:       '18px',
     height:         '18px',
-    borderRadius:   '50%',
-    background:     '#FF3B30',
-    border:         '2px solid rgba(0,0,0,0.4)',
+    borderRadius:   '3px',
+    background:     PHONE.RED,
+    border:         '2px solid #000',
     display:        'flex',
     alignItems:     'center',
     justifyContent: 'center',
+    boxShadow:      '2px 2px 0 #000',
   },
   badgeNum: {
     fontSize:   '10px',
     fontWeight: '700',
     color:      '#fff',
+    fontFamily: PHONE.COND,
   },
 
   dock: {
@@ -532,12 +698,12 @@ const s = {
     alignItems:     'center',
     justifyContent: 'center',
     gap:            '16px',
-    background:     'rgba(255,255,255,0.12)',
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
-    borderRadius:   '22px',
+    background:     'rgba(10,10,14,0.6)',
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
+    borderRadius:   PHONE.RADIUS_TILE,
     padding:        '10px 18px',
-    border:         '1px solid rgba(255,255,255,0.1)',
+    border:         '1px solid rgba(211,19,46,0.35)',
   },
   iconBtnSm: {
     position:     'relative',
@@ -562,8 +728,10 @@ const s = {
   homeBar: {
     width:        '120px',
     height:       '5px',
-    borderRadius: '3px',
+    borderRadius: '1px',
     background:   'rgba(255,255,255,0.3)',
+    transform:    PHONE.SKEW,
+    boxShadow:    `0 0 8px rgba(211,19,46,0.4)`,
   },
 
   fade: {
